@@ -107,6 +107,36 @@
 #% guisection: Function
 #%end
 
+#%option
+#% key: flat
+#% type: double
+#% description: Radius of flats
+#% label: Radius of flats
+#% answer: 0.0
+#% multiple: no
+#% guisection: Input
+#%end
+
+#%option
+#% key: smooth
+#% type: double
+#% description: Smoothing radius
+#% label: Smoothing radius
+#% answer: 0.0
+#% multiple: no
+#% guisection: Input
+#%end
+
+#%option
+#% key: spacing
+#% type: double
+#% description: Point spacing along lines
+#% label: Point spacing along lines
+#% answer: 1.0
+#% multiple: no
+#% guisection: Input
+#%end
+
 import sys
 import atexit
 import grass.script as grass
@@ -147,27 +177,70 @@ def convert_raster(raster):
 
 def convert_coordinates(coordinates, z):
 
-    # create list
-    attractors = []
-
     # parse input coordinates
     coordinates = coordinates.split(',')
     cx = coordinates[::2]
     cy = coordinates[1::2]
     cz = z.split(',')
-    coordinates = (
-        [f'{x},{y},{z}' for x, y, z in zip(cx, cy, cz)]
-        )
     if len(cz) > 1 and len(cz) != len(cx):
         grass.warning(
             'Number of z-values does not match xy-coordinates!'
             )
- 
+
+    # convert coordinates with constant z value
+    if len(cz) == 1:
+        coordinates = (
+            "\n".join([f'{x},{y},{z}' for x, y in zip(cx, cy)])
+            )
+        attractors = coordinates2D(coordinates)
+
+    # convert coordinates with list of z values
+    elif len(cz) > 1:
+        coordinates = (
+            [f'{x},{y},{z}' for x, y, z in zip(cx, cy, cz)]
+            )
+        attractors = coordinates3D(coordinates)
+
+    return attractors
+
+def coordinates2D(coordinates):
+
+    # create list
+    attractors = []
+
+    # create temporary raster
+    attractor = grass.append_node_pid(f'attractor')
+    atexit.register(clean, attractor)
+
+    # convert to raster
+    grass.write_command(
+        'r.in.xyz',
+        input='-',
+        output=attractor,
+        separator='comma',
+        stdin=coordinates,
+        overwrite=True
+        )
+
+    # append to list
+    attractors.append(attractor)
+
+    return attractors
+
+def coordinates3D(coordinates):
+
+    # create list
+    attractors = []
+
     # convert each coordinate to raster
     n = len(coordinates)    
     for index in range(n):
+
+        # create temporary raster
         attractor = grass.append_node_pid(f'attractor_{index + 1}')
         atexit.register(clean, attractor)
+        
+        # convert to raster
         grass.write_command(
             'r.in.xyz',
             input='-',
@@ -181,8 +254,8 @@ def convert_coordinates(coordinates, z):
         attractors.append(attractor)
 
     return attractors
-
-def convert_points(points, z):
+    
+def convert_points(points, z , layer):
 
     # create list
     attractors = []
@@ -194,46 +267,55 @@ def convert_points(points, z):
         flags='t'
         )
 
-    # convert to 3D
-    points_3d = grass.append_node_pid('points_3d')
-    atexit.register(clean, points_3d)
+    # convert 2D points
     if info['map3d'] == '0':
-        grass.run_command(
-            'v.to.3d',
-            input=points,
-            output=points_3d,
-            height=z,
-            overwrite=True,
-            superquiet=True
-            )
-        points = points_3d
-
-    # convert each point to raster
-    n = info['points']
-    for index in range(1, int(n)+1):
-        attractor = f'attractor_{index}'
-        attractor = grass.append_node_pid(attractor)
+        
+        # create temporary raster
+        attractor = grass.append_node_pid(f'attractor')
         atexit.register(clean, attractor)
+        
+        # convert to raster
         grass.run_command(
             'v.to.rast',
             input=points,
-            cats=index,
             output=attractor,
-            use='z',
+            use='val',
+            value=z,
             overwrite=True,
             superquiet=True
             )
-    
+
         # append to list
         attractors.append(attractor)
+
+    # convert 3D points
+    if info['map3d'] == '1':
+
+        # convert each point to raster
+        n = info['points']
+        for index in range(1, int(n)+1):
+            attractor = f'attractor_{index}'
+            attractor = grass.append_node_pid(attractor)
+            atexit.register(clean, attractor)
+            grass.run_command(
+                'v.to.rast',
+                input=points,
+                layer=layer,
+                cats=index,
+                output=attractor,
+                use='z',
+                overwrite=True,
+                superquiet=True
+                )
+
+            # append to list
+            attractors.append(attractor)
     
     return attractors
 
-def convert_lines(lines):
+def convert_lines(lines, spacing):
 
     # convert lines to points
-    region = grass.parse_command('g.region', flags=['g'])
-    res = region['nsres']
     points = grass.append_node_pid('points')
     atexit.register(clean, points)
     grass.run_command(
@@ -241,18 +323,49 @@ def convert_lines(lines):
         input=lines,
         output=points,
         use='vertex',
-        dmax=res,
+        dmax=spacing,
         flags='i',
-        overwrite=True
+        overwrite=True,
+        superquiet=True
         )
 
     return points
 
+def flats(attractor, flat):
+
+    # create temporary raster
+    buffer = grass.append_node_pid('buffer')
+    atexit.register(clean, buffer)
+    
+    # grow attractor
+    grass.run_command(
+        'r.buffer',
+        input=attractor,
+        output=buffer,
+        distances=flat,
+        overwrite=True,
+        superquiet=True
+        )
+    info = grass.parse_command(
+        'r.info',
+        map=attractor,
+        flags=['s']
+        )
+    z = info['max']
+    grass.mapcalc(
+        f'{attractor} = if(isnull({buffer}), null(), {z})',
+        overwrite=True,
+        superquiet=True
+        )
+
+    return attractor
+
 def distance(attractor, elevation, operation):
 
-    # assign variables
-    dxy = 'dxy'
-    dz = 'dz'    
+    # create temporary rasters
+    dxy = grass.append_node_pid('dxy')
+    dz = grass.append_node_pid('dz')
+    atexit.register(clean, [dxy, dz])
 
     # set relative or absolute attractors
     if operation == 'relative':
@@ -278,7 +391,7 @@ def distance(attractor, elevation, operation):
             overwrite=True
             )
 
-        return dxy, dz
+    return dxy, dz
 
 def linear_decay(dz, dxy, rate, decay):
 
@@ -301,15 +414,16 @@ def exponential_decay(dz, dxy, rate, decay):
 
 def decay_fuction(function, dz, dxy, rate):
 
-    # assign variables
-    decay = 'decay'
+    # create temporary raster
+    decay = grass.append_node_pid('decay')
+    atexit.register(clean, decay)
 
     # determine decay function
     if function == 'linear':
         decay = linear_decay(dz, dxy, rate, decay)
     if function == 'exponential':
         decay = exponential_decay(dz, dxy, rate, decay)
-        
+
     return decay
 
 def earthworking(earthwork, elevation, decay):
@@ -334,11 +448,55 @@ def series(landforms, earthworks):
         overwrite=True
         )
 
+def smoothing(elevation, earthworks, smooth):
+
+    # set variables
+    neighborhood = int(smooth * 2)
+    if neighborhood % 2 == 0:
+        neighborhood += 1
+
+    # create temporary raster
+    fill = grass.append_node_pid('fill')
+    atexit.register(clean, fill)
+    
+    # select fill
+    grass.mapcalc(
+        f'{fill} = if({earthworks} > {elevation}, {earthworks}, null())',
+        overwrite=True,
+        superquiet=True
+        )
+    
+    # grow border
+    grass.run_command(
+        'r.grow',
+        input=fill,
+        output=fill,
+        radius=smooth,
+        overwrite=True,
+        superquiet=True
+        )
+    
+    # smooth fill
+    grass.run_command(
+        'r.neighbors',
+        input=earthworks,
+        selection=fill,
+        output=earthworks,
+        size=neighborhood,
+        method='average',
+        flags='c',
+        overwrite=True,
+        superquiet=True
+        )
+
+def postprocess(earthworks):
+
     # set colors
     grass.run_command(
         'r.colors',
         map=earthworks,
-        color='viridis'
+        color='viridis',
+        superquiet=True
         )
 
     # save history
@@ -361,6 +519,9 @@ def main():
     lines = options['lines']
     coordinates = options['coordinates']
     z = options['z']
+    flat = float(options['flat'])
+    smooth = float(options['smooth'])
+    spacing = options['spacing']
 
     # convert inputs
     if raster:
@@ -368,33 +529,70 @@ def main():
     elif coordinates:
         attractors = convert_coordinates(coordinates, z)
     elif points:
-        attractors = convert_points(points, z)
+        attractors = convert_points(points, z, 1)
     elif lines:
-        points = convert_lines(lines)
-        attractors = convert_points(points, z)
+        points = convert_lines(lines, spacing)
+        attractors = convert_points(points, z, 2)
     else:
         grass.error(
             'An input raster, set of coordinates, or point is required!'
             )
 
-    # iterate through inputs
-    landforms = []
-    for attractor in attractors:
+    # model earthworks for 2D attractors
+    if len(attractors) == 1:
 
-        # create temporary rasters
-        index = attractor.split('_', 2)
-        earthwork = f'earthwork_{index[1]}'
-        earthwork = grass.append_node_pid(earthwork)
-        atexit.register(clean, earthwork)
+        # print mode
+        grass.message('2D Mode')
+        
+        # set variable
+        attractor = attractors[0]
 
-        # model each earthwork
+        # model earthwork
+        if flat > 0.0:
+            attractor = flats(attractor, flat)
         dxy, dz = distance(attractor, elevation, operation)
         decay = decay_fuction(function, dz, dxy, rate)
-        earthworking(earthwork, elevation, decay)
-        landforms.append(earthwork)
+        earthworking(earthworks, elevation, decay)
 
-    # model earthworks
-    series(landforms, earthworks)
+        # smooth earthworks
+        smoothing(elevation, earthworks, smooth)
+        
+        # postprocessing
+        postprocess(earthworks)
+
+    # model earthworks for 3D attractors
+    if len(attractors) > 1:
+
+        # print mode
+        grass.message('3D Mode')
+        
+        # iterate through inputs
+        landforms = []
+        for attractor in attractors:
+
+            # create temporary rasters
+            index = attractor.split('_', 2)
+            earthwork = f'earthwork_{index[1]}'
+            earthwork = grass.append_node_pid(earthwork)
+            atexit.register(clean, earthwork)
+
+            # model each earthwork
+            if flat > 0.0:
+                attractor = flats(attractor, flat)
+            dxy, dz = distance(attractor, elevation, operation)
+            decay = decay_fuction(function, dz, dxy, rate)
+            earthworking(earthwork, elevation, decay)
+            landforms.append(earthwork)
+
+        # model earthworks
+        series(landforms, earthworks)
+
+        # smooth earthworks
+        smoothing(elevation, earthworks, smooth)
+        
+        # postprocessing
+        postprocess(earthworks)
+
 
 if __name__ == "__main__":
     sys.exit(main())
