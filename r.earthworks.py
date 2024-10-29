@@ -255,7 +255,7 @@ def coordinates3D(coordinates):
 
     return attractors
     
-def convert_points(points, z , layer):
+def convert_points(points, operation, z , layer):
 
     # create list
     attractors = []
@@ -268,7 +268,7 @@ def convert_points(points, z , layer):
         )
 
     # convert 2D points
-    if info['map3d'] == '0':
+    if info['map3d'] == '0' and operation != 'relative':
         
         # create temporary raster
         attractor = grass.append_node_pid(f'attractor')
@@ -288,8 +288,32 @@ def convert_points(points, z , layer):
         # append to list
         attractors.append(attractor)
 
+    # convert relative points
+    elif info['map3d'] == '0' and operation == 'relative':
+
+        # convert each point to raster
+        n = info['points']
+        for index in range(1, int(n)+1):
+            attractor = f'attractor_{index}'
+            attractor = grass.append_node_pid(attractor)
+            atexit.register(clean, attractor)
+            grass.run_command(
+                'v.to.rast',
+                input=points,
+                layer=layer,
+                cats=index,
+                output=attractor,
+                use='val',
+                value=z,
+                overwrite=True,
+                superquiet=True
+                )
+
+            # append to list
+            attractors.append(attractor)
+
     # convert 3D points
-    if info['map3d'] == '1':
+    elif info['map3d'] == '1':
 
         # convert each point to raster
         n = info['points']
@@ -322,9 +346,7 @@ def convert_lines(lines, spacing):
         'v.to.points',
         input=lines,
         output=points,
-        use='vertex',
         dmax=spacing,
-        flags='i',
         overwrite=True,
         superquiet=True
         )
@@ -366,7 +388,7 @@ def distance(attractor, elevation, operation):
     dxy = grass.append_node_pid('dxy')
     dz = grass.append_node_pid('dz')
     atexit.register(clean, [dxy, dz])
-
+#
     # set relative or absolute attractors
     if operation == 'relative':
         grass.mapcalc(
@@ -383,6 +405,13 @@ def distance(attractor, elevation, operation):
         overwrite=True,
         superquiet=True
         )
+
+    # determine operation
+    if operation == 'relative':
+        grass.mapcalc(
+            f'{dz} = {dz} - {elevation}',
+            overwrite=True
+            )
 
     # determine operation
     if operation == 'absolute':
@@ -529,13 +558,13 @@ def main():
     elif coordinates:
         attractors = convert_coordinates(coordinates, z)
     elif points:
-        attractors = convert_points(points, z, 1)
+        attractors = convert_points(points, operation, z, 1)
     elif lines:
         points = convert_lines(lines, spacing)
-        attractors = convert_points(points, z, 2)
+        attractors = convert_points(points, operation, z, 2)
     else:
         grass.error(
-            'An input raster, set of coordinates, or point is required!'
+            'An input raster, vector, or set of coordinates is required!'
             )
 
     # model earthworks for 2D attractors
