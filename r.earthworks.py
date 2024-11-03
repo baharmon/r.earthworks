@@ -37,12 +37,22 @@
 # %end
 
 # %option
-# % key: operation
+# % key: mode
 # % type: string
 # % answer: absolute
 # % options: relative,absolute
+# % description: Earthworking mode
+# % descriptions: relative;Relative to exisiting topography;absolute;At given elevation
+# % required: yes
+#%end
+
+# %option
+# % key: operation
+# % type: string
+# % answer: cutfill
+# % options: cut,fill,cutfill
 # % description: Earthworking operation
-# % descriptions: relative;Operation relative to exisiting topography;absolute;Operation at given elevation
+# % descriptions: cut;Cut into topography;fill;Fill ontop topography;cutfill;Cut and fill
 # % required: yes
 #%end
 
@@ -255,7 +265,7 @@ def coordinates3D(coordinates):
 
     return attractors
     
-def convert_points(points, operation, z , layer):
+def convert_points(points, mode, z , layer):
 
     # create list
     attractors = []
@@ -268,7 +278,7 @@ def convert_points(points, operation, z , layer):
         )
 
     # convert 2D points
-    if info['map3d'] == '0' and operation != 'relative':
+    if info['map3d'] == '0' and mode != 'relative':
         
         # create temporary raster
         attractor = grass.append_node_pid(f'attractor')
@@ -289,7 +299,7 @@ def convert_points(points, operation, z , layer):
         attractors.append(attractor)
 
     # convert relative points
-    elif info['map3d'] == '0' and operation == 'relative':
+    elif info['map3d'] == '0' and mode == 'relative':
 
         # convert each point to raster
         n = info['points']
@@ -382,21 +392,24 @@ def flats(attractor, flat):
 
     return attractor
 
-def distance(attractor, elevation, operation):
+def distance(attractor, elevation, mode):
 
     # create temporary rasters
     dxy = grass.append_node_pid('dxy')
     dz = grass.append_node_pid('dz')
     atexit.register(clean, [dxy, dz])
-#
+
     # set relative or absolute attractors
-    if operation == 'relative':
+    if mode == 'relative':
         grass.mapcalc(
-            f'{attractor} = if(isnull({attractor}), null(), {elevation} + {attractor})',
+            f'{attractor}'
+            f'= if(isnull({attractor}),'
+            f'null(),'
+            f'{elevation} + {attractor})',
             overwrite=True
             )
 
-    # calculate distance field
+    # calculate horizontal distance field
     grass.run_command(
         'r.grow.distance',
         input=attractor,
@@ -406,65 +419,112 @@ def distance(attractor, elevation, operation):
         superquiet=True
         )
 
-    # determine operation
-    if operation == 'relative':
-        grass.mapcalc(
-            f'{dz} = {dz} - {elevation}',
-            overwrite=True
-            )
-
-    # determine operation
-    if operation == 'absolute':
-        grass.mapcalc(
-            f'{dz} = {dz} - {elevation}',
-            overwrite=True
-            )
+    # calculate vertical distance field
+    grass.mapcalc(
+        f'{dz} = {dz} - {elevation}',
+        overwrite=True
+        )
 
     return dxy, dz
 
-def linear_decay(dz, dxy, rate, decay):
+def linear_decay(dz, dxy, rate):
 
-    # f(t) = C - r * t
-    # z = A - 1/R * r
+    """
+    f(t) = C - r * t
+    z = A - 1/R * r
+    """
+    
+    # create temporary rasters
+    decay = grass.append_node_pid('decay')
+    atexit.register(clean, decay)
+    growth = grass.append_node_pid('growth')
+    atexit.register(clean, decay)
+
+    # calculate growth
+    growth = 'growth'
+    grass.mapcalc(
+        f'{growth} = {dz} - (-{rate}) * {dxy}',
+        overwrite=True
+        )
+
+    # calculate decay
     grass.mapcalc(
         f'{decay} = {dz} - {rate} * {dxy}',
         overwrite=True
         )
-    return decay
 
-def exponential_decay(dz, dxy, rate, decay):
+    return growth, decay
+  
+def exponential_decay(dz, dxy, rate):
     
-    # z = z0 * e^(-lamba * t)
+    """
+    z = z0 * e^(-lamba * t)
+    """
+
+    # create temporary rasters
+    decay = grass.append_node_pid('decay')
+    atexit.register(clean, decay)
+    growth = grass.append_node_pid('growth')
+    atexit.register(clean, decay)
+
+    # calculate decay and decay
     grass.mapcalc(
         f'{decay} = {dz} * exp(2.71828, (-{rate} * {dxy}))',
         overwrite=True
         )
-    return decay
+    growth = decay
+
+    return growth, decay
 
 def decay_fuction(function, dz, dxy, rate):
 
-    # create temporary raster
-    decay = grass.append_node_pid('decay')
-    atexit.register(clean, decay)
-
     # determine decay function
     if function == 'linear':
-        decay = linear_decay(dz, dxy, rate, decay)
+        growth, decay = linear_decay(dz, dxy, rate)
     if function == 'exponential':
-        decay = exponential_decay(dz, dxy, rate, decay)
+        growth, decay = exponential_decay(dz, dxy, rate)
 
-    return decay
+    return growth, decay
 
-def earthworking(earthwork, elevation, decay):
+def earthworking(earthwork, elevation, growth, decay, operation):
 
-    # model earthworks
-    grass.mapcalc(
-        f'{earthwork}'
-        f'= if({elevation} + {decay} >= {elevation},'
-        f'{elevation} + {decay},'
-        f'{elevation})',
-        overwrite=True
-        )
+    # cut operation
+    if operation == 'cut':
+
+        # model earthworks
+        grass.mapcalc(
+            f'{earthwork}'
+            f'= if({elevation} + {decay} <= {elevation},'
+            f'{elevation} + {decay},'
+            f'{elevation})',
+            overwrite=True
+            )
+
+    # fill operation
+    if operation == 'fill':
+
+        # model earthworks
+        grass.mapcalc(
+            f'{earthwork}'
+            f'= if({elevation} + {decay} >= {elevation},'
+            f'{elevation} + {decay},'
+            f'{elevation})',
+            overwrite=True
+            )
+
+    # cut-fill operation
+    if operation == 'cutfill':
+
+        # model earthworks
+        grass.mapcalc(
+            f'{earthwork}'
+            f'= if({elevation} + {decay} >= {elevation},'
+            f'{elevation} + {decay},'
+            f'if({elevation} + {growth} <= {elevation},'
+            f'{elevation} + {growth},'
+            f'{elevation}))',
+            overwrite=True
+            )
 
 def series(landforms, earthworks):
 
@@ -477,40 +537,18 @@ def series(landforms, earthworks):
         overwrite=True
         )
 
-def smoothing(elevation, earthworks, smooth):
+def smoothing(raster, smooth):
 
     # set variables
     neighborhood = int(smooth * 2)
     if neighborhood % 2 == 0:
         neighborhood += 1
 
-    # create temporary raster
-    fill = grass.append_node_pid('fill')
-    atexit.register(clean, fill)
-    
-    # select fill
-    grass.mapcalc(
-        f'{fill} = if({earthworks} > {elevation}, {earthworks}, null())',
-        overwrite=True,
-        superquiet=True
-        )
-    
-    # grow border
-    grass.run_command(
-        'r.grow',
-        input=fill,
-        output=fill,
-        radius=smooth,
-        overwrite=True,
-        superquiet=True
-        )
-    
-    # smooth fill
+    # smooth raster
     grass.run_command(
         'r.neighbors',
-        input=earthworks,
-        selection=fill,
-        output=earthworks,
+        input=raster,
+        output=raster,
         size=neighborhood,
         method='average',
         flags='c',
@@ -540,9 +578,10 @@ def main():
     options, flags = grass.parser()
     elevation = options['elevation']
     earthworks = options['earthworks']
+    mode = options['mode']
     operation = options['operation']
     function = options['function']
-    rate = options['rate']
+    rate = abs(float(options['rate']))
     raster = options['raster']
     points = options['points']
     lines = options['lines']
@@ -558,10 +597,10 @@ def main():
     elif coordinates:
         attractors = convert_coordinates(coordinates, z)
     elif points:
-        attractors = convert_points(points, operation, z, 1)
+        attractors = convert_points(points, mode, z, 1)
     elif lines:
         points = convert_lines(lines, spacing)
-        attractors = convert_points(points, operation, z, 2)
+        attractors = convert_points(points, mode, z, 2)
     else:
         grass.error(
             'An input raster, vector, or set of coordinates is required!'
@@ -579,12 +618,11 @@ def main():
         # model earthwork
         if flat > 0.0:
             attractor = flats(attractor, flat)
-        dxy, dz = distance(attractor, elevation, operation)
-        decay = decay_fuction(function, dz, dxy, rate)
-        earthworking(earthworks, elevation, decay)
-
-        # smooth earthworks
-        smoothing(elevation, earthworks, smooth)
+        dxy, dz = distance(attractor, elevation, mode)
+        growth, decay = decay_fuction(function, dz, dxy, rate)
+        smoothing(growth, smooth)
+        smoothing(decay, smooth)
+        earthworking(earthworks, elevation, growth, decay, operation)
         
         # postprocessing
         postprocess(earthworks)
@@ -608,16 +646,15 @@ def main():
             # model each earthwork
             if flat > 0.0:
                 attractor = flats(attractor, flat)
-            dxy, dz = distance(attractor, elevation, operation)
-            decay = decay_fuction(function, dz, dxy, rate)
-            earthworking(earthwork, elevation, decay)
+            dxy, dz = distance(attractor, elevation, mode)
+            growth, decay = decay_fuction(function, dz, dxy, rate)
+            smoothing(growth, smooth)
+            smoothing(decay, smooth)
+            earthworking(earthwork, elevation, growth, decay, operation)
             landforms.append(earthwork)
 
         # model earthworks
         series(landforms, earthworks)
-
-        # smooth earthworks
-        smoothing(elevation, earthworks, smooth)
         
         # postprocessing
         postprocess(earthworks)
