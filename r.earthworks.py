@@ -812,7 +812,7 @@ def convert_lines(lines, z):
         flags='t'
         )
 
-    # convert 2D line
+    # convert 2D lines
     if info['map3d'] == '0':
 
         # convert lines to raster
@@ -828,7 +828,7 @@ def convert_lines(lines, z):
             superquiet=True
             )
 
-    # convert 2D line
+    # convert 3D lines
     elif info['map3d'] == '1':
 
         # convert lines to raster
@@ -853,7 +853,6 @@ def earthworking(
     function,
     rate,
     operation,
-    procedure,
     earthworks,
     cut,
     fill
@@ -903,17 +902,13 @@ def earthworking(
 
     # model cut operation
     if operation == 'cut':
-        if procedure == '2D':
-            output = earthworks
-        elif procedure == '3D':
-            output = cut
         operation = (
             f'if({elevation} + growth <= {elevation},'
             f'{elevation} + growth,'
             f'{elevation})'
             )
         grass.mapcalc(
-            f'{output}'
+            f'{cut}'
             f'= eval('
             f'{dxy},'
             f'{flat},'
@@ -926,17 +921,13 @@ def earthworking(
 
     # model fill operation
     elif operation == 'fill':
-        if procedure == '2D':
-            output = earthworks
-        elif procedure == '3D':
-            output = fill
         operation = (
             f'if({elevation} + decay >= {elevation},'
             f'{elevation} + decay,'
             f'{elevation})'
             )
         grass.mapcalc(
-            f'{output}'
+            f'{fill}'
             f'= eval('
             f'{dxy},'
             f'{flat},'
@@ -949,69 +940,42 @@ def earthworking(
 
     # model cut-fill operation
     elif operation == 'cutfill':
-   
-        if procedure == '2D':
 
-            # model cut and fill
-            operation = (
-                f'if({elevation} + decay >= {elevation},'
-                f'{elevation} + decay,'
-                f'if({elevation} + growth <= {elevation},'
-                f'{elevation} + growth,'
-                f'{elevation}))'
-                )
+        # model cut
+        operation = (
+            f'if({elevation} + growth <= {elevation},'
+            f'{elevation} + growth,'
+            f'null())'
+            )
+        grass.mapcalc(
+            f'{cut}'
+            f'= eval('
+            f'{dxy},'
+            f'{flat},'
+            f'{dz},'
+            f'{growth},'
+            f'{operation}'
+            f')',
+            overwrite=True
+            )
 
-            # model earthworks
-            grass.mapcalc(
-                f'{earthworks}'
-                f'= eval('
-                f'{dxy},'
-                f'{flat},'
-                f'{dz},'
-                f'{growth},'
-                f'{decay},'
-                f'{operation}'
-                f')',
-                overwrite=True
-                )
-
-        elif procedure == '3D': 
-
-            # model cut
-            operation = (
-                f'if({elevation} + growth <= {elevation},'
-                f'{elevation} + growth,'
-                f'null())'
-                )
-            grass.mapcalc(
-                f'{cut}'
-                f'= eval('
-                f'{dxy},'
-                f'{flat},'
-                f'{dz},'
-                f'{growth},'
-                f'{operation}'
-                f')',
-                overwrite=True
-                )
-
-            # model fill
-            operation = (
-                f'if({elevation} + decay >= {elevation},'
-                f'{elevation} + decay,'
-                f'null())'
-                )
-            grass.mapcalc(
-                f'{fill}'
-                f'= eval('
-                f'{dxy},'
-                f'{flat},'
-                f'{dz},'
-                f'{decay},'
-                f'{operation}'
-                f')',
-                overwrite=True
-                )
+        # model fill
+        operation = (
+            f'if({elevation} + decay >= {elevation},'
+            f'{elevation} + decay,'
+            f'null())'
+            )
+        grass.mapcalc(
+            f'{fill}'
+            f'= eval('
+            f'{dxy},'
+            f'{flat},'
+            f'{dz},'
+            f'{decay},'
+            f'{operation}'
+            f')',
+            overwrite=True
+            )
 
 def series(operation, cuts, fills, elevation, earthworks):
 
@@ -1167,7 +1131,7 @@ def print_difference(operation, volume):
         fill = grass.append_node_pid('fill')
         atexit.register(clean, fill)
         grass.mapcalc(
-            f'{fill} = if({volume} > 0, volume, null())',
+            f'{fill} = if({volume} > 0, {volume}, null())',
             overwrite=True
             )
         univar = grass.parse_command('r.univar',
@@ -1176,7 +1140,7 @@ def print_difference(operation, volume):
             flags='g')
         net = nsres * ewres * float(univar['sum'])
         if math.isnan(net):
-            net = 0
+            net = 0.0
         grass.info(f'Net fill: {net} cubic {units.lower()}')
 
     # print cut
@@ -1184,7 +1148,7 @@ def print_difference(operation, volume):
         cut = grass.append_node_pid('cut')
         atexit.register(clean, cut)
         grass.mapcalc(
-            f'{cut} = if({volume} < 0, volume, null())',
+            f'{cut} = if({volume} < 0, {volume}, null())',
             overwrite=True
             )
         univar = grass.parse_command('r.univar',
@@ -1193,7 +1157,7 @@ def print_difference(operation, volume):
             flags='g')
         net = nsres * ewres * float(univar['sum'])
         if math.isnan(net):
-            net = 0
+            net = 0.0
         grass.info(f'Net cut: {net} cubic {units.lower()}')
 
 def postprocess(earthworks):
@@ -1251,23 +1215,22 @@ def main():
             'A raster, vector, or set of coordinates is required!'
             )
 
-    # model earthworks for 2D attractors
-    if len(coordinates) == 1:
-
-        # set 2D mode
-        procedure = '2D'
-        grass.message('2D Mode')
-        
-        # set variables
-        coordinate = coordinates[0]
+    # iterate through inputs
+    cuts = []
+    fills = [] 
+    index = 0
+    for coordinate in coordinates:
 
         # create temporary rasters
-        cut = grass.append_node_pid('cut')
+        cut = f'cut_{index}'
+        cut = grass.append_node_pid(cut)
         atexit.register(clean, cut)
-        fill = grass.append_node_pid('fill')
+        fill = f'fill_{index}'
+        fill = grass.append_node_pid(fill)
         atexit.register(clean, fill)
+        index = index + 1
 
-        # model earthwork
+        # model each operation
         earthworking(
             coordinate,
             elevation,
@@ -1276,60 +1239,22 @@ def main():
             function,
             rate,
             operation,
-            procedure,
             earthworks,
             cut,
             fill
-            ) 
+            )
 
-    # model earthworks for 3D attractors
-    elif len(coordinates) > 1:
+        # append to lists of operations
+        if operation == 'cut':
+            cuts.append(cut)
+        elif operation == 'fill':
+            fills.append(fill)
+        elif operation == 'cutfill':
+            cuts.append(cut)
+            fills.append(fill)
 
-        # set mode
-        procedure = '3D'
-        grass.message('3D Mode')
-        
-        # iterate through inputs
-        cuts = []
-        fills = [] 
-        index = 0
-        for coordinate in coordinates:
-
-            # create temporary rasters
-            cut = f'cut_{index}'
-            cut = grass.append_node_pid(cut)
-            atexit.register(clean, cut)
-            fill = f'fill_{index}'
-            fill = grass.append_node_pid(fill)
-            atexit.register(clean, fill)
-            index = index + 1
-
-            # model each operation
-            earthworking(
-                coordinate,
-                elevation,
-                flat,
-                mode,
-                function,
-                rate,
-                operation,
-                procedure,
-                earthworks,
-                cut,
-                fill
-                )
-
-            # append to lists of operations
-            if operation == 'cut':
-                cuts.append(cut)
-            elif operation == 'fill':
-                fills.append(fill)
-            elif operation == 'cutfill':
-                cuts.append(cut)
-                fills.append(fill)
-
-        # model earthworks
-        series(operation, cuts, fills, elevation, earthworks)
+    # model earthworks
+    series(operation, cuts, fills, elevation, earthworks)
 
     # calculate volume
     if volume or print_volume:
