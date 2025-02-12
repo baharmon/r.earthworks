@@ -159,10 +159,10 @@
 #% description: Print volume
 #%end
 
-
+import grass.script as grass
 import sys
 import atexit
-import grass.script as grass
+import math
 import time
 start_time = time.time()
 
@@ -693,7 +693,7 @@ def clean(name):
 def convert_raster(raster):
 
     # parse raster
-    stats = grass.parse_command(
+    data = grass.parse_command(
         'r.stats',
         input=raster,
         flags=['gn']
@@ -701,12 +701,12 @@ def convert_raster(raster):
 
     # find coordinates
     coordinates = []
-    for stat in stats.keys():
-        data = stat.split(' ')
-        x = data[0]
-        y = data[1]
-        z = data[2]
-        coordinate = [x, y  ,z]
+    for datum in data.keys():
+        xyz = datum.split(' ')
+        x = xyz[0]
+        y = xyz[1]
+        z = xyz[2]
+        coordinate = [x, y, z]
         coordinates.append(coordinate)
     
     return coordinates
@@ -725,76 +725,26 @@ def convert_coordinates(coordinates, z):
 
     # convert coordinates with constant z value
     if len(cz) == 1:
-        coordinates = (
-            "\n".join([f'{x},{y},{z}' for x, y in zip(cx, cy)])
-            )
-        attractors = coordinates2D(coordinates)
+        coordinates = [
+            [float(x), float(y), float(z)]
+            for x, y
+            in zip(cx, cy)
+            ]
 
-    # convert coordinates with list of z values
+    # # convert coordinates with list of z values
     elif len(cz) > 1:
-        coordinates = (
-            [f'{x},{y},{z}' for x, y, z in zip(cx, cy, cz)]
-            )
-        attractors = coordinates3D(coordinates)
+        coordinates = [
+            [float(x), float(y), float(z)]
+            for x, y, z
+            in zip(cx, cy, cz)
+            ]
 
-    return attractors
-
-def coordinates2D(coordinates):
-
-    # create list
-    attractors = []
-
-    # create temporary raster
-    attractor = grass.append_node_pid('attractor')
-    atexit.register(clean, attractor)
-
-    # convert to raster
-    grass.write_command(
-        'r.in.xyz',
-        input='-',
-        output=attractor,
-        separator='comma',
-        stdin=coordinates,
-        overwrite=True
-        )
-
-    # append to list
-    attractors.append(attractor)
-
-    return attractors
-
-def coordinates3D(coordinates):
-
-    # create list
-    attractors = []
-
-    # convert each coordinate to raster
-    n = len(coordinates)    
-    for index in range(n):
-
-        # create temporary raster
-        attractor = grass.append_node_pid(f'attractor_{index + 1}')
-        atexit.register(clean, attractor)
-        
-        # convert to raster
-        grass.write_command(
-            'r.in.xyz',
-            input='-',
-            output=attractor,
-            separator='comma',
-            stdin=coordinates[index],
-            overwrite=True
-            )
-
-        # append to list
-        attractors.append(attractor)
-
-    return attractors
+    return coordinates
     
-def convert_points(points, mode, z , layer):
+def convert_points(points, mode, z):
 
     # create list
-    attractors = []
+    coordinates = []
 
     # get info
     info = grass.parse_command(
@@ -804,90 +754,96 @@ def convert_points(points, mode, z , layer):
         )
 
     # convert 2D points
-    if info['map3d'] == '0' and mode != 'relative':
-        
-        # create temporary raster
-        attractor = grass.append_node_pid(f'attractor')
-        atexit.register(clean, attractor)
-        
-        # convert to raster
+    if info['map3d'] == '0':
+
+        # parse points
+        data = grass.parse_command(
+            'v.to.db',
+            map=points,
+            option='coor',
+            separator='comma',
+            flags='p',
+            overwrite=True,
+            superquiet=True
+            )
+
+        # find coordinates
+        coordinates = []
+        for datum in data.keys():
+            xyz = datum.split(',')
+            x = float(xyz[1])
+            y = float(xyz[2])
+            z = float(z)
+            coordinate = [x, y, z]
+            coordinates.append(coordinate)
+
+    # convert 3D points
+    elif info['map3d'] == '1':
+
+        # parse points
+        data = grass.parse_command(
+            'v.to.db',
+            map=points,
+            option='coor',
+            separator='comma',
+            flags='p',
+            overwrite=True,
+            superquiet=True
+            )
+
+        # find coordinates
+        coordinates = []
+        for datum in data.keys():
+            xyz = datum.split(',')
+            x = float(xyz[1])
+            y = float(xyz[2])
+            z = float(xyz[3])
+            coordinate = [x, y, z]
+            coordinates.append(coordinate)
+    
+    return coordinates
+
+def convert_lines(lines, z):
+
+    # get info
+    info = grass.parse_command(
+        'v.info',
+        map=lines,
+        flags='t'
+        )
+
+    # convert 2D line
+    if info['map3d'] == '0':
+
+        # convert lines to raster
+        raster = grass.append_node_pid('raster')
+        atexit.register(clean, raster)
         grass.run_command(
             'v.to.rast',
-            input=points,
-            output=attractor,
-            use='val',
+            input=lines,
+            output=raster,
+            use='value',
             value=z,
             overwrite=True,
             superquiet=True
             )
 
-        # append to list
-        attractors.append(attractor)
-
-    # convert relative points
-    elif info['map3d'] == '0' and mode == 'relative':
-
-        # convert each point to raster
-        n = info['points']
-        for index in range(1, int(n)+1):
-            attractor = f'attractor_{index}'
-            attractor = grass.append_node_pid(attractor)
-            atexit.register(clean, attractor)
-            grass.run_command(
-                'v.to.rast',
-                input=points,
-                layer=layer,
-                cats=index,
-                output=attractor,
-                use='val',
-                value=z,
-                overwrite=True,
-                superquiet=True
-                )
-
-            # append to list
-            attractors.append(attractor)
-
-    # convert 3D points
+    # convert 2D line
     elif info['map3d'] == '1':
 
-        # convert each point to raster
-        n = info['points']
-        for index in range(1, int(n)+1):
-            attractor = f'attractor_{index}'
-            attractor = grass.append_node_pid(attractor)
-            atexit.register(clean, attractor)
-            grass.run_command(
-                'v.to.rast',
-                input=points,
-                layer=layer,
-                cats=index,
-                output=attractor,
-                use='z',
-                overwrite=True,
-                superquiet=True
-                )
+        # convert lines to raster
+        raster = grass.append_node_pid('raster')
+        atexit.register(clean, raster)
+        grass.run_command(
+            'v.to.rast',
+            input=lines,
+            output=raster,
+            use='z',
+            overwrite=True,
+            superquiet=True
+            )
 
-            # append to list
-            attractors.append(attractor)
-    
-    return attractors
-
-def convert_lines(lines, spacing):
-
-    # convert lines to points
-    points = grass.append_node_pid('points')
-    atexit.register(clean, points)
-    grass.run_command(
-        'v.to.points',
-        input=lines,
-        output=points,
-        dmax=spacing,
-        overwrite=True,
-        superquiet=True
-        )
-
-    return points
+    return raster
 
 def earthworking(
     coordinate,
@@ -1184,7 +1140,7 @@ def difference(elevation, earthworks, volume, gradient):
     
     return volume
 
-def print_difference(volume):
+def print_difference(operation, volume):
 
     # find resolution
     region = grass.parse_command('g.region', flags=['g'])
@@ -1196,40 +1152,49 @@ def print_difference(volume):
     units = projection.get('units', 'units')
 
     # print net change
-    univar = grass.parse_command('r.univar',
-        map=volume,
-        separator='newline',
-        flags='g')
-    net = nsres * ewres * float(univar['sum'])
-    grass.info(f'Net change: {net} cubic {units}')
+    if operation == 'cutfill':
+        univar = grass.parse_command('r.univar',
+            map=volume,
+            separator='newline',
+            flags='g')
+        net = nsres * ewres * float(univar['sum'])
+        if math.isnan(net):
+            net = 0
+        grass.info(f'Net change: {net} cubic {units.lower()}')
 
     # print fill
-    fill = grass.append_node_pid('fill')
-    atexit.register(clean, fill)
-    grass.mapcalc(
-        f'{fill} = if({volume} > 0, volume, null())',
-        overwrite=True
-        )
-    univar = grass.parse_command('r.univar',
-        map=fill,
-        separator='newline',
-        flags='g')
-    net = nsres * ewres * float(univar['sum'])
-    grass.info(f'Net fill: {net} cubic {units}')
+    if operation in {'cutfill', 'fill'}:
+        fill = grass.append_node_pid('fill')
+        atexit.register(clean, fill)
+        grass.mapcalc(
+            f'{fill} = if({volume} > 0, volume, null())',
+            overwrite=True
+            )
+        univar = grass.parse_command('r.univar',
+            map=fill,
+            separator='newline',
+            flags='g')
+        net = nsres * ewres * float(univar['sum'])
+        if math.isnan(net):
+            net = 0
+        grass.info(f'Net fill: {net} cubic {units.lower()}')
 
     # print cut
-    cut = grass.append_node_pid('cut')
-    atexit.register(clean, cut)
-    grass.mapcalc(
-        f'{cut} = if({volume} < 0, volume, null())',
-        overwrite=True
-        )
-    univar = grass.parse_command('r.univar',
-        map=cut,
-        separator='newline',
-        flags='g')
-    net = nsres * ewres * float(univar['sum'])
-    grass.info(f'Net cut: {net} cubic {units}')
+    if operation in {'cutfill', 'cut'}:
+        cut = grass.append_node_pid('cut')
+        atexit.register(clean, cut)
+        grass.mapcalc(
+            f'{cut} = if({volume} < 0, volume, null())',
+            overwrite=True
+            )
+        univar = grass.parse_command('r.univar',
+            map=cut,
+            separator='newline',
+            flags='g')
+        net = nsres * ewres * float(univar['sum'])
+        if math.isnan(net):
+            net = 0
+        grass.info(f'Net cut: {net} cubic {units.lower()}')
 
 def postprocess(earthworks):
 
@@ -1275,12 +1240,12 @@ def main():
     if raster:
         coordinates = convert_raster(raster)
     elif coordinates:
-        attractors = convert_coordinates(coordinates, z)
+        coordinates = convert_coordinates(coordinates, z)
     elif points:
-        attractors = convert_points(points, mode, z, 1)
+        coordinates = convert_points(points, mode, z)
     elif lines:
-        points = convert_lines(lines, spacing)
-        attractors = convert_points(points, mode, z, 2)
+        raster = convert_lines(lines, z)
+        coordinates = convert_raster(raster)
     else:
         grass.error(
             'A raster, vector, or set of coordinates is required!'
@@ -1318,7 +1283,7 @@ def main():
             ) 
 
     # model earthworks for 3D attractors
-    if len(coordinates) > 1:
+    elif len(coordinates) > 1:
 
         # set mode
         procedure = '3D'
@@ -1372,7 +1337,7 @@ def main():
 
     # print volume
     if print_volume:
-        print_difference(volume)
+        print_difference(operation, volume)
 
     # postprocessing
     postprocess(earthworks)
