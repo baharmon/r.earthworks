@@ -160,11 +160,14 @@
 #%end
 
 import grass.script as grass
+import multiprocessing
+from itertools import repeat
 import sys
 import atexit
 import math
 import time
 start_time = time.time()
+processes = multiprocessing.cpu_count()
 
 def clean(name):
     grass.run_command(
@@ -476,6 +479,48 @@ def earthworking(
             overwrite=True
             )
 
+def operations(
+    coordinate,
+    elevation,
+    flat,
+    mode,
+    function,
+    rate,
+    operation,
+    earthworks,
+    cuts,
+    fills
+    ):
+
+    # create temporary rasters
+    cut = grass.append_node_pid('cut')
+    atexit.register(clean, cut)
+    fill = grass.append_node_pid('fill')
+    atexit.register(clean, fill)
+
+    # model each operation
+    earthworking(
+        coordinate,
+        elevation,
+        flat,
+        mode,
+        function,
+        rate,
+        operation,
+        earthworks,
+        cut,
+        fill
+        )
+
+    # append to lists of operations
+    if operation == 'cut':
+        cuts.append(cut)
+    elif operation == 'fill':
+        fills.append(fill)
+    elif operation == 'cutfill':
+        cuts.append(cut)
+        fills.append(fill)
+
 def series(operation, cuts, fills, elevation, earthworks):
 
     # model net fill
@@ -716,43 +761,37 @@ def main():
             'A raster, vector, or set of coordinates is required!'
             )
 
-    # iterate through inputs
-    cuts = []
-    fills = [] 
-    index = 0
-    for coordinate in coordinates:
+# ------------ START EDITING ----------
 
-        # create temporary rasters
-        cut = f'cut_{index}'
-        cut = grass.append_node_pid(cut)
-        atexit.register(clean, cut)
-        fill = f'fill_{index}'
-        fill = grass.append_node_pid(fill)
-        atexit.register(clean, fill)
-        index = index + 1
+    # model earthworking operations in parallel
+    with multiprocessing.Manager() as manager:
 
-        # model each operation
-        earthworking(
-            coordinate,
-            elevation,
-            flat,
-            mode,
-            function,
-            rate,
-            operation,
-            earthworks,
-            cut,
-            fill
+        # manage lists
+        cuts = manager.list()
+        fills = manager.list()
+
+        # set iterables
+        iterables = zip(
+            coordinates,
+            repeat(elevation),
+            repeat(flat),
+            repeat(mode),
+            repeat(function),
+            repeat(rate),
+            repeat(operation),
+            repeat(earthworks),
+            repeat(cuts),
+            repeat(fills)
             )
 
-        # append to lists of operations
-        if operation == 'cut':
-            cuts.append(cut)
-        elif operation == 'fill':
-            fills.append(fill)
-        elif operation == 'cutfill':
-            cuts.append(cut)
-            fills.append(fill)
+        # run operations in parallel
+        with multiprocessing.Pool(processes=processes) as pool:
+            pool.starmap(operations, iterables)
+        
+        # print lists
+        print(fills)
+
+# ------------ END EDITING ----------
 
     # model earthworks
     series(operation, cuts, fills, elevation, earthworks)
@@ -768,7 +807,8 @@ def main():
     # postprocessing
     postprocess(earthworks)
 
-    print(f'{time.time() - start_time} seconds')
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     sys.exit(main())
