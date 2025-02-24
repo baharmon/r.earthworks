@@ -149,24 +149,38 @@
 #% description: Print volume
 #%end
 
+# import modules
 import grass.script as grass
 import multiprocessing
 from itertools import repeat
 import sys
 import atexit
 import math
-import time
-start_time = time.time()
+import random
 processes = multiprocessing.cpu_count()
 
-def clean(name):
-    grass.run_command(
-        'g.remove',
-        type='raster,vector',
-        name=name,
-        flags='f',
-        superquiet=True
-        )
+# set environment
+env = grass.gisenv()
+mapset = env['MAPSET']
+
+def clean(cuts, fills):
+
+    # remove temporary rasters
+    try:
+        maps = grass.list_grouped(
+            'rast',
+            pattern='*attlocal*'
+            )[mapset]
+        maps = maps + cuts + fills
+        grass.run_command(
+            'g.remove',
+            type='raster',
+            name=[maps],
+            flags='f',
+            superquiet=True
+            )
+    except:
+        pass
 
 def convert_raster(raster):
 
@@ -295,7 +309,6 @@ def convert_lines(lines, z):
 
         # convert lines to raster
         raster = grass.append_node_pid('raster')
-        atexit.register(clean, raster)
         grass.run_command(
             'v.to.rast',
             input=lines,
@@ -312,8 +325,6 @@ def convert_lines(lines, z):
         # convert 3D lines to raster
         points = grass.append_node_pid('points')
         raster = grass.append_node_pid('raster')
-        atexit.register(clean, points)
-        atexit.register(clean, raster)
         region = grass.parse_command('g.region', flags=['g'])
         nsres = float(region['nsres'])
         ewres = float(region['ewres'])
@@ -482,10 +493,10 @@ def operations(
     ):
 
     # create temporary rasters
-    cut = grass.append_node_pid('cut')
-    atexit.register(clean, cut)
-    fill = grass.append_node_pid('fill')
-    atexit.register(clean, fill)
+    cut = f'cut_{random.randint(1, 10000000)}'
+    fill = f'fill_{random.randint(1, 10000000)}'
+#    cut = grass.append_node_pid('cut')
+#    fill = grass.append_node_pid('fill')
 
     # model each operation
     earthworking(
@@ -516,8 +527,7 @@ def series(operation, cuts, fills, elevation, earthworks):
     if operation == 'fill':
 
         # calculate maximum fill
-        fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
+        fill = 'net_fill'
         grass.run_command(
             'r.series',
             input=fills,
@@ -536,11 +546,10 @@ def series(operation, cuts, fills, elevation, earthworks):
             )
 
     # model net cut
-    elif operation == 'netcut':
+    elif operation == 'cut':
 
         # calculate minimum cut
-        cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
+        cut = 'net_cut'
         grass.run_command(
             'r.series',
             input=cuts,
@@ -562,8 +571,7 @@ def series(operation, cuts, fills, elevation, earthworks):
     elif operation == 'cutfill':
 
         # calculate minimum cut
-        cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
+        cut = 'net_cut'
         grass.run_command(
             'r.series',
             input=cuts,
@@ -573,8 +581,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             )
 
         # calculate maximum fill
-        fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
+        fill = 'net_fill'
         grass.run_command(
             'r.series',
             input=fills,
@@ -618,7 +625,6 @@ def difference(elevation, earthworks, volume):
     # create temporary raster
     if not volume:
         volume = grass.append_node_pid('volume')
-        atexit.register(clean, volume)
 
     # model earthworks
     grass.mapcalc(
@@ -667,7 +673,6 @@ def print_difference(operation, volume):
     # print fill
     if operation in {'cutfill', 'fill'}:
         fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
         grass.mapcalc(
             f'{fill} = if({volume} > 0, {volume}, null())',
             overwrite=True
@@ -684,7 +689,6 @@ def print_difference(operation, volume):
     # print cut
     if operation in {'cutfill', 'cut'}:
         cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
         grass.mapcalc(
             f'{cut} = if({volume} < 0, {volume}, null())',
             overwrite=True
@@ -780,15 +784,16 @@ def main():
         # calculate volume
         if volume or print_volume:
             volume = difference(elevation, earthworks, volume)
-
+    
         # print volume
         if print_volume:
             print_difference(operation, volume)
-
+    
         # postprocessing
         postprocess(earthworks)
 
-        print(f'{time.time() - start_time} seconds')
+        # cleanup
+        clean(cuts, fills)
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()

@@ -144,16 +144,6 @@
 #% guisection: Input
 #%end
 
-#%option
-#% key: spacing
-#% type: double
-#% description: Point spacing along lines
-#% label: Point spacing along lines
-#% answer: 1.0
-#% multiple: no
-#% guisection: Input
-#%end
-
 #%flag
 #% key: p
 #% description: Print volume
@@ -384,7 +374,6 @@ def earthworking(
     # caclulate absolute elevation above surface
     elif mode == 'absolute': 
         dz = f'dz = {z} - {elevation}'
-#        dz = f'dz = (-{z}*0.1) - {elevation}'
     
     # calculate linear function
     if function == 'linear':
@@ -698,7 +687,6 @@ def main():
     z = options['z']
     flat = float(options['flat'])
     smooth = float(options['smooth'])
-    spacing = options['spacing']
     print_volume = flags['p']
 
     # convert inputs
