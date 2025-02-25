@@ -134,36 +134,36 @@
 #% guisection: Input
 #%end
 
-#%option
-#% key: smooth
-#% type: double
-#% description: Smoothing radius
-#% label: Smoothing radius
-#% answer: 0.0
-#% multiple: no
-#% guisection: Input
-#%end
-
 #%flag
 #% key: p
 #% description: Print volume
 #%end
 
+# import libraries
 import grass.script as grass
+import multiprocessing
+from itertools import repeat
 import sys
 import atexit
 import math
-import time
-start_time = time.time()
 
-def clean(name):
-    grass.run_command(
-        'g.remove',
-        type='raster,vector',
-        name=name,
-        flags='f',
-        superquiet=True
-        )
+# set global variables
+processes = multiprocessing.cpu_count()
+temporary = []
+
+def clean(temporary):
+
+    # remove temporary rasters
+    try:
+        grass.run_command(
+            'g.remove',
+            type='raster',
+            name=[temporary],
+            flags='f',
+            superquiet=True
+            )
+    except:
+        pass
 
 def convert_raster(raster):
 
@@ -291,8 +291,8 @@ def convert_lines(lines, z):
     if info['map3d'] == '0':
 
         # convert lines to raster
-        raster = grass.append_node_pid('raster')
-        atexit.register(clean, raster)
+        raster = grass.append_uuid('raster')
+        temporary.append(raster)
         grass.run_command(
             'v.to.rast',
             input=lines,
@@ -307,10 +307,9 @@ def convert_lines(lines, z):
     elif info['map3d'] == '1':
 
         # convert 3D lines to raster
-        points = grass.append_node_pid('points')
-        raster = grass.append_node_pid('raster')
-        atexit.register(clean, points)
-        atexit.register(clean, raster)
+        points = grass.append_uuid('points')
+        raster = grass.append_uuid('raster')
+        temporary.extend([points, raster])
         region = grass.parse_command('g.region', flags=['g'])
         nsres = float(region['nsres'])
         ewres = float(region['ewres'])
@@ -386,7 +385,6 @@ def earthworking(
         # z = z0 * e^(-lamba * t)
         growth = f'growth = dz * exp(2.71828, (-{rate} * dxy))'
         decay = f'decay = growth'
-
 
     # model cut operation
     if operation == 'cut':
@@ -465,51 +463,78 @@ def earthworking(
             overwrite=True
             )
 
+def operations(
+    coordinate,
+    elevation,
+    flat,
+    mode,
+    function,
+    rate,
+    operation,
+    earthworks,
+    ids,
+    cuts,
+    fills
+    ):
+
+    # create temporary rasters
+    if operation == 'cut':
+        cut = grass.append_uuid('cut')
+        fill = None
+    elif operation == 'fill':
+        fill = grass.append_uuid('fill')
+        cut = None
+    elif operation == 'cutfill':
+        cut = grass.append_uuid('cut')
+        fill = grass.append_uuid('fill')
+    ids.extend([cut, fill])
+
+    # model each operation
+    earthworking(
+        coordinate,
+        elevation,
+        flat,
+        mode,
+        function,
+        rate,
+        operation,
+        earthworks,
+        cut,
+        fill
+        )
+
+    # append to lists of operations
+    if operation == 'cut':
+        cuts.append(cut)
+    elif operation == 'fill':
+        fills.append(fill)
+    elif operation == 'cutfill':
+        cuts.append(cut)
+        fills.append(fill)
+
 def series(operation, cuts, fills, elevation, earthworks):
 
-    # model net fill
-    if operation == 'fill':
-
-        # calculate maximum fill
-        fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
-        grass.run_command(
-            'r.series',
-            input=fills,
-            output=fill,
-            method='maximum',
-            overwrite=True
-            )
-
-        # calculate net fill
-        grass.mapcalc(
-            f'{earthworks}'
-            f'= if(isnull({fill}),'
-            f'{elevation},'
-            f'{fill})',
-            overwrite=True
-            )
-
     # model net cut
-    elif operation == 'cut':
+    if operation == 'cut':
 
         # calculate minimum cut
-        cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
         grass.run_command(
             'r.series',
             input=cuts,
-            output=cut,
+            output=earthworks,
             method='minimum',
             overwrite=True
             )
 
-        # calculate net cut
-        grass.mapcalc(
-            f'{earthworks}'
-            f'= if(isnull({cut}),'
-            f'{elevation},'
-            f'{cut})',
+    # model net fill
+    elif operation == 'fill':
+
+        # calculate maximum fill
+        grass.run_command(
+            'r.series',
+            input=fills,
+            output=earthworks,
+            method='maximum',
             overwrite=True
             )
 
@@ -517,8 +542,8 @@ def series(operation, cuts, fills, elevation, earthworks):
     elif operation == 'cutfill':
 
         # calculate minimum cut
-        cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
+        cut = grass.append_uuid('cut')
+        temporary.append(cut)
         grass.run_command(
             'r.series',
             input=cuts,
@@ -528,8 +553,8 @@ def series(operation, cuts, fills, elevation, earthworks):
             )
 
         # calculate maximum fill
-        fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
+        fill = grass.append_uuid('fill')
+        temporary.append(fill)
         grass.run_command(
             'r.series',
             input=fills,
@@ -549,31 +574,12 @@ def series(operation, cuts, fills, elevation, earthworks):
             overwrite=True
             )
 
-def smoothing(raster, smooth):
-
-    # set variables
-    neighborhood = int(smooth * 2)
-    if neighborhood % 2 == 0:
-        neighborhood += 1
-
-    # smooth raster
-    grass.run_command(
-        'r.neighbors',
-        input=raster,
-        output=raster,
-        size=neighborhood,
-        method='average',
-        flags='c',
-        overwrite=True,
-        superquiet=True
-        )
-
 def difference(elevation, earthworks, volume):
 
     # create temporary raster
     if not volume:
-        volume = grass.append_node_pid('volume')
-        atexit.register(clean, volume)
+        volume = grass.append_uuid('volume')
+        temporary.append(volume)
 
     # model earthworks
     grass.mapcalc(
@@ -621,8 +627,8 @@ def print_difference(operation, volume):
 
     # print fill
     if operation in {'cutfill', 'fill'}:
-        fill = grass.append_node_pid('fill')
-        atexit.register(clean, fill)
+        fill = grass.append_uuid('fill')
+        temporary.append(fill)
         grass.mapcalc(
             f'{fill} = if({volume} > 0, {volume}, null())',
             overwrite=True
@@ -638,8 +644,8 @@ def print_difference(operation, volume):
 
     # print cut
     if operation in {'cutfill', 'cut'}:
-        cut = grass.append_node_pid('cut')
-        atexit.register(clean, cut)
+        cut = grass.append_uuid('cut')
+        temporary.append(cut)
         grass.mapcalc(
             f'{cut} = if({volume} < 0, {volume}, null())',
             overwrite=True
@@ -686,77 +692,74 @@ def main():
     coordinates = options['coordinates']
     z = options['z']
     flat = float(options['flat'])
-    smooth = float(options['smooth'])
     print_volume = flags['p']
 
-    # convert inputs
-    if raster:
-        coordinates = convert_raster(raster)
-    elif coordinates:
-        coordinates = convert_coordinates(coordinates, z)
-    elif points:
-        coordinates = convert_points(points, mode, z)
-    elif lines:
-        raster = convert_lines(lines, z)
-        coordinates = convert_raster(raster)
-    else:
-        grass.error(
-            'A raster, vector, or set of coordinates is required!'
-            )
+    # run processes
+    try:
 
-    # iterate through inputs
-    cuts = []
-    fills = [] 
-    index = 0
-    for coordinate in coordinates:
+        # convert inputs
+        if raster:
+            coordinates = convert_raster(raster)
+        elif coordinates:
+            coordinates = convert_coordinates(coordinates, z)
+        elif points:
+            coordinates = convert_points(points, mode, z)
+        elif lines:
+            raster = convert_lines(lines, z)
+            coordinates = convert_raster(raster)
+        else:
+            grass.error(
+                'A raster, vector, or set of coordinates is required!'
+                )
 
-        # create temporary rasters
-        cut = f'cut_{index}'
-        cut = grass.append_node_pid(cut)
-        atexit.register(clean, cut)
-        fill = f'fill_{index}'
-        fill = grass.append_node_pid(fill)
-        atexit.register(clean, fill)
-        index = index + 1
+        # run earthworking operations in parallel
+        with multiprocessing.Manager() as manager:
 
-        # model each operation
-        earthworking(
-            coordinate,
-            elevation,
-            flat,
-            mode,
-            function,
-            rate,
-            operation,
-            earthworks,
-            cut,
-            fill
-            )
+            # manage lists
+            ids = manager.list()
+            cuts = manager.list()
+            fills = manager.list()
 
-        # append to lists of operations
-        if operation == 'cut':
-            cuts.append(cut)
-        elif operation == 'fill':
-            fills.append(fill)
-        elif operation == 'cutfill':
-            cuts.append(cut)
-            fills.append(fill)
+            # set iterables
+            iterables = zip(
+                coordinates,
+                repeat(elevation),
+                repeat(flat),
+                repeat(mode),
+                repeat(function),
+                repeat(rate),
+                repeat(operation),
+                repeat(earthworks),
+                repeat(ids),
+                repeat(cuts),
+                repeat(fills)
+                )
 
-    # model earthworks
-    series(operation, cuts, fills, elevation, earthworks)
+            # run operations
+            with multiprocessing.Pool(processes=processes) as pool:
+                pool.starmap(operations, iterables)
+            
+            # register temporary maps
+            temporary.extend(ids)
 
-    # calculate volume
-    if volume or print_volume:
-        volume = difference(elevation, earthworks, volume)
+            # model earthworks
+            series(operation, cuts, fills, elevation, earthworks)
 
-    # print volume
-    if print_volume:
-        print_difference(operation, volume)
+            # calculate volume
+            if volume or print_volume:
+                volume = difference(elevation, earthworks, volume)
 
-    # postprocessing
-    postprocess(earthworks)
+            # print volume
+            if print_volume:
+                print_difference(operation, volume)
 
-    print(f'{time.time() - start_time} seconds')
+            # postprocessing
+            postprocess(earthworks)
+
+    # clean up
+    finally:
+        atexit.register(clean, temporary)
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     sys.exit(main())
