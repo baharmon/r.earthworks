@@ -4,7 +4,7 @@
 An add-on module for computational terrain modeling in GRASS GIS.
 
 ## Installation
-`g.extension  extension=r.earthworks url=github.com/baharmon/r.earthworks`
+`g.extension  extension=r.earthworks url=https://github.com/baharmon/r.earthworks`
 
 ## Example
 In the [North Carolina](https://grass.osgeo.org/sampledata/north_carolina/nc_spm_08_grass7.zip) sample dataset:
