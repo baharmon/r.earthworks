@@ -563,14 +563,23 @@ def series(operation, cuts, fills, elevation, earthworks):
             overwrite=True
             )
 
+        # calculate sum of cut and fill
+        cutfill = grass.append_uuid('cutfill')
+        temporary.append(cutfill)
+        grass.run_command(
+            'r.series',
+            input=[cut, fill],
+            output=cutfill,
+            method='sum',
+            overwrite=True
+            )
+
         # calculate net cut and fill
         grass.mapcalc(
             f'{earthworks}'
-            f'= if(isnull({cut}) &&& isnull({fill}),'
+            f'= if(isnull({cutfill}),'
             f'{elevation},'
-            f'if(isnull({cut}),'
-            f'{fill},'
-            f'{cut}))',
+            f'{cutfill})',
             overwrite=True
             )
 
