@@ -110,7 +110,7 @@
 #% description: Elevation value
 #% label: Elevation value
 #% answer: 1.0
-#% multiple: no
+#% multiple: yes
 #% guisection: Input
 #%end
 
