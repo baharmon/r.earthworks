@@ -141,19 +141,18 @@
 
 # import libraries
 import grass.script as grass
-import multiprocessing
 from itertools import repeat
+from itertools import batched
 import sys
 import atexit
 import math
 
 # set global variables
-processes = multiprocessing.cpu_count()
 temporary = []
 
 def clean(temporary):
 
-    # remove temporary rasters
+    # remove temporary maps
     try:
         grass.run_command(
             'g.remove',
@@ -334,7 +333,8 @@ def convert_lines(lines, z):
     return raster
 
 def earthworking(
-    coordinate,
+    batch_size,
+    batch,
     elevation,
     flat,
     mode,
@@ -345,81 +345,153 @@ def earthworking(
     cut,
     fill
     ):
+    """
+    Model earthworks
+    """
 
-    # parse coordinate
-    x = coordinate[0]
-    y = coordinate[1]
-    z = coordinate[2]
+    # create empty lists for expressions
+    dxy = []
+    flats = []
+    dz = []
+    growth = []
+    decay = []
+    cut_operations = []
+    fill_operations = []
 
-    # calculate distance
-    dxy = (
-        f'dxy'
-        f'= sqrt(((x() - {x})'
-        f'* (x() - {x}))'
-        f'+ ((y() - {y})'
-        f'* (y() - {y})))'
-        )
+    # loop through batch
+    for i in range(batch_size):
 
-    # calculate flats
-    if flat > 0.0:
-        flat = f'dxy = if(dxy <= {flat}, 0, dxy - {flat})'
-    else:
-        flat = f'dxy = {dxy}'
+        # parse coordinate
+        x = batch[i][0]
+        y = batch[i][1]
+        z = batch[i][2]
 
-    # caclulate elevation relative to the surface
-    if mode == 'relative':
-        dz = f'dz = {z}'
+        # append expression for calculating distance
+        dxy.append(
+            f'dxy_{i}'
+            f'= sqrt(((x() - {x})'
+            f'* (x() - {x}))'
+            f'+ ((y() - {y})'
+            f'* (y() - {y})))'
+            )
 
-    # caclulate absolute elevation above surface
-    elif mode == 'absolute': 
-        dz = f'dz = {z} - {elevation}'
-    
-    # calculate linear function
-    if function == 'linear':
-        # z = C - r * t
-        growth = f'growth = dz - (-{rate}) * dxy'
-        decay = f'decay = dz - {rate} * dxy'
+        # append expression for calculating flats
+        if flat > 0.0:
+            flats.append(
+                f'dxy_{i} = if(dxy_{i} <= {flat}, 0, dxy_{i} - {flat})'
+                )
+        else:
+            flats.append(
+                f'dxy_{i} = dxy_{i}'
+                )
 
-    # calculate exponential function
-    elif function == 'exponential':
-        # z = z0 * e^(-lamba * t)
-        growth = f'growth = dz * exp(2.71828, (-{rate} * dxy))'
-        decay = f'decay = growth'
+        # append expression for calculating relative elevation
+        if mode == 'relative':
+            dz.append(
+                f'dz_{i} = {z}'
+                )
+
+        # append expression for calculating absolute elevation
+        elif mode == 'absolute': 
+            dz.append(
+                f'dz_{i} = {z} - {elevation}'
+                )
+
+        # append expressions for linear function
+        if function == 'linear':
+            # z = C - r * t
+
+            # append expression for calculating growth
+            growth.append(
+                f'growth_{i} = dz_{i} - (-{rate}) * dxy_{i}'
+                )
+
+            # append expression for calculating decay
+            decay.append(
+                f'decay_{i} = dz_{i} - {rate} * dxy_{i}'
+                )
+
+        # append expression for exponential function
+        elif function == 'exponential':
+            # z = z0 * e^(-lamba * t)
+
+            # append expression for calculating growth
+            growth.append(
+                f'growth_{i}'
+                '= dz_{i}'
+                '* exp(2.71828, (-{rate} * dxy_{i}))'
+                )
+
+            # append expression for calculating decay
+            decay.append(
+                f'decay_{i} = growth_{i}'
+                )
+
+        # append expression for cut operation
+        if operation == 'cut':
+            cut_operations.append(
+                f'if({elevation} + growth_{i} <= {elevation},'
+                f'{elevation} + growth_{i},'
+                f'{elevation})'
+                )
+
+        # append expression for fill operation
+        elif operation == 'fill':
+            fill_operations.append(
+                f'if({elevation} + decay_{i} >= {elevation},'
+                f'{elevation} + decay_{i},'
+                f'{elevation})'
+                )
+
+        # append expression for cut-fill operation
+        elif operation == 'cutfill':
+
+            # append expression for cut operation
+            cut_operations.append(
+                f'if({elevation} + growth_{i} <= {elevation},'
+                f'{elevation} + growth_{i},'
+                f'null())'
+                )
+
+            # append expression for fill operation
+            fill_operations.append(
+                f'if({elevation} + decay_{i} >= {elevation},'
+                f'{elevation} + decay_{i},'
+                f'null())'
+                )
 
     # model cut operation
     if operation == 'cut':
-        operation = (
-            f'if({elevation} + growth <= {elevation},'
-            f'{elevation} + growth,'
-            f'{elevation})'
-            )
+
+        # model earthworks
         grass.mapcalc(
             f'{cut}'
             f'= eval('
-            f'{dxy},'
-            f'{flat},'
-            f'{dz},'
-            f'{growth},'
-            f'{operation}'
+            f'{",".join(dxy)},'
+            f'{",".join(flats)},'
+            f'{",".join(dz)},'
+            f'{",".join(growth)},'
+            f'min('
+            f'{",".join(cut_operations)}'
+            f')'
             f')',
             overwrite=True
             )
 
     # model fill operation
     elif operation == 'fill':
-        operation = (
-            f'if({elevation} + decay >= {elevation},'
-            f'{elevation} + decay,'
-            f'{elevation})'
-            )
+
+        # model earthworks
         grass.mapcalc(
             f'{fill}'
             f'= eval('
-            f'{dxy},'
-            f'{flat},'
-            f'{dz},'
-            f'{decay},'
-            f'{operation}'
+            f'{",".join(dxy)},'
+            f'{",".join(flats)},'
+            f'{",".join(dz)},'
+            f'{",".join(decay)},'
+            f'max('
+            f'{",".join(fill_operations)}'
+            f')'
             f')',
             overwrite=True
             )
@@ -428,89 +500,34 @@ def earthworking(
     elif operation == 'cutfill':
 
         # model cut
-        operation = (
-            f'if({elevation} + growth <= {elevation},'
-            f'{elevation} + growth,'
-            f'null())'
-            )
         grass.mapcalc(
             f'{cut}'
             f'= eval('
-            f'{dxy},'
-            f'{flat},'
-            f'{dz},'
-            f'{growth},'
-            f'{operation}'
+            f'{",".join(dxy)},'
+            f'{",".join(flats)},'
+            f'{",".join(dz)},'
+            f'{",".join(growth)},'
+            f'nmin('
+            f'{",".join(cut_operations)}'
+            f')'
             f')',
             overwrite=True
             )
 
         # model fill
-        operation = (
-            f'if({elevation} + decay >= {elevation},'
-            f'{elevation} + decay,'
-            f'null())'
-            )
         grass.mapcalc(
             f'{fill}'
             f'= eval('
-            f'{dxy},'
-            f'{flat},'
-            f'{dz},'
-            f'{decay},'
-            f'{operation}'
+            f'{",".join(dxy)},'
+            f'{",".join(flats)},'
+            f'{",".join(dz)},'
+            f'{",".join(decay)},'
+            f'nmax('
+            f'{",".join(fill_operations)}'
+            f')'
             f')',
             overwrite=True
             )
-
-def operations(
-    coordinate,
-    elevation,
-    flat,
-    mode,
-    function,
-    rate,
-    operation,
-    earthworks,
-    ids,
-    cuts,
-    fills
-    ):
-
-    # create temporary rasters
-    if operation == 'cut':
-        cut = grass.append_uuid('cut')
-        fill = None
-    elif operation == 'fill':
-        fill = grass.append_uuid('fill')
-        cut = None
-    elif operation == 'cutfill':
-        cut = grass.append_uuid('cut')
-        fill = grass.append_uuid('fill')
-    ids.extend([cut, fill])
-
-    # model each operation
-    earthworking(
-        coordinate,
-        elevation,
-        flat,
-        mode,
-        function,
-        rate,
-        operation,
-        earthworks,
-        cut,
-        fill
-        )
-
-    # append to lists of operations
-    if operation == 'cut':
-        cuts.append(cut)
-    elif operation == 'fill':
-        fills.append(fill)
-    elif operation == 'cutfill':
-        cuts.append(cut)
-        fills.append(fill)
 
 def series(operation, cuts, fills, elevation, earthworks):
 
@@ -523,6 +540,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             input=cuts,
             output=earthworks,
             method='minimum',
+            flags='z',
             overwrite=True
             )
 
@@ -535,6 +553,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             input=fills,
             output=earthworks,
             method='maximum',
+            flags='z',
             overwrite=True
             )
 
@@ -549,6 +568,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             input=cuts,
             output=cut,
             method='minimum',
+            flags='z',
             overwrite=True
             )
 
@@ -560,6 +580,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             input=fills,
             output=fill,
             method='maximum',
+            flags='z',
             overwrite=True
             )
 
@@ -571,6 +592,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             input=[cut, fill],
             output=cutfill,
             method='sum',
+            flags='z',
             overwrite=True
             )
 
@@ -721,54 +743,69 @@ def main():
                 'A raster, vector, or set of coordinates is required!'
                 )
 
-        # run earthworking operations in parallel
-        with multiprocessing.Manager() as manager:
+        # create empty lists
+        cuts = []
+        fills = []
 
-            # manage lists
-            ids = manager.list()
-            cuts = manager.list()
-            fills = manager.list()
+        # batch process coordinates
+        batch_size = 256
+        batches = list(batched(coordinates, batch_size))
+        for batch in batches:
 
-            # set iterables
-            iterables = zip(
-                coordinates,
-                repeat(elevation),
-                repeat(flat),
-                repeat(mode),
-                repeat(function),
-                repeat(rate),
-                repeat(operation),
-                repeat(earthworks),
-                repeat(ids),
-                repeat(cuts),
-                repeat(fills)
-                )
+            # set current batch size
+            batch_size = len(batch)
 
-            # run operations
-            with multiprocessing.Pool(processes=processes) as pool:
-                pool.starmap(operations, iterables)
-            
-            # register temporary maps
-            temporary.extend(ids)
+            # create temporary rasters
+            if operation == 'cut':
+                cut = grass.append_uuid('cut')
+                fill = None
+                cuts.append(cut)
+                temporary.append(cut)
+            elif operation == 'fill':
+                cut = None
+                fill = grass.append_uuid('fill')
+                fills.append(fill)
+                temporary.append(fill)
+            elif operation == 'cutfill':
+                cut = grass.append_uuid('cut')
+                fill = grass.append_uuid('fill')
+                cuts.append(cut)
+                fills.append(fill)
+                temporary.append(cut)
+                temporary.append(fill)
 
             # model earthworks
-            series(operation, cuts, fills, elevation, earthworks)
+            earthworking(
+                batch_size,
+                batch,
+                elevation,
+                flat,
+                mode,
+                function,
+                rate,
+                operation,
+                earthworks,
+                cut,
+                fill
+                )
 
-            # calculate volume
-            if volume or print_volume:
-                volume = difference(elevation, earthworks, volume)
+        # model composite earthworks
+        series(operation, cuts, fills, elevation, earthworks)
 
-            # print volume
-            if print_volume:
-                print_difference(operation, volume)
+        # calculate volume
+        if volume or print_volume:
+            volume = difference(elevation, earthworks, volume)
 
-            # postprocessing
-            postprocess(earthworks)
+        # print volume
+        if print_volume:
+            print_difference(operation, volume)
+
+        # postprocessing
+        postprocess(earthworks)
 
     # clean up
     finally:
         atexit.register(clean, temporary)
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
     sys.exit(main())
