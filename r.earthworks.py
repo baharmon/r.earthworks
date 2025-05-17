@@ -151,6 +151,9 @@ import math
 temporary = []
 
 def clean(temporary):
+    """
+    Remove temporary maps
+    """
 
     # remove temporary maps
     try:
@@ -165,6 +168,9 @@ def clean(temporary):
         pass
 
 def convert_raster(raster):
+    """
+    Convert raster to coordinates
+    """
 
     # parse raster
     data = grass.parse_command(
@@ -186,6 +192,9 @@ def convert_raster(raster):
     return coordinates
 
 def convert_coordinates(coordinates, z):
+    """
+    Parse coordinates
+    """
 
     # parse input coordinates
     coordinates = coordinates.split(',')
@@ -216,6 +225,9 @@ def convert_coordinates(coordinates, z):
     return coordinates
     
 def convert_points(points, mode, z):
+    """
+    Convert points to coordinates
+    """
 
     # create list
     coordinates = []
@@ -278,6 +290,9 @@ def convert_points(points, mode, z):
     return coordinates
 
 def convert_lines(lines, z):
+    """
+    Convert lines to coordinates
+    """
 
     # get info
     info = grass.parse_command(
@@ -346,7 +361,7 @@ def earthworking(
     fill
     ):
     """
-    Model earthworks
+    Model local earthworks
     """
 
     # create empty lists for expressions
@@ -417,14 +432,12 @@ def earthworking(
 
             # append expression for calculating growth
             growth.append(
-                f'growth_{i}'
-                '= dz_{i}'
-                '* exp(2.71828, (-{rate} * dxy_{i}))'
+                f'growth_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))'
                 )
 
             # append expression for calculating decay
             decay.append(
-                f'decay_{i} = growth_{i}'
+                f'decay_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))'
                 )
 
         # append expression for cut operation
@@ -530,6 +543,9 @@ def earthworking(
             )
 
 def series(operation, cuts, fills, elevation, earthworks):
+    """
+    Model cumulative earthworks
+    """
 
     # model net cut
     if operation == 'cut':
@@ -606,6 +622,9 @@ def series(operation, cuts, fills, elevation, earthworks):
             )
 
 def difference(elevation, earthworks, volume):
+    """
+    Calculate elevation change
+    """
 
     # create temporary raster
     if not volume:
@@ -635,6 +654,9 @@ def difference(elevation, earthworks, volume):
     return volume
 
 def print_difference(operation, volume):
+    """
+    Print elevation change
+    """
 
     # find resolution
     region = grass.parse_command('g.region', flags=['g'])
@@ -691,6 +713,9 @@ def print_difference(operation, volume):
         grass.info(f'Net cut: {net} cubic {units.lower()}')
 
 def postprocess(earthworks):
+    """
+    Postprocessing
+    """
 
     # set colors
     grass.run_command(
@@ -707,6 +732,9 @@ def postprocess(earthworks):
         )
 
 def main():
+    """
+    Model earthworks
+    """
 
     # get input options
     options, flags = grass.parser()
