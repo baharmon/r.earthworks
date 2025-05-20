@@ -7,13 +7,15 @@ An add-on module for computational terrain modeling in GRASS GIS.
 `g.extension  extension=r.earthworks url=https://github.com/baharmon/r.earthworks`
 
 ## Example
-In the [North Carolina](https://grass.osgeo.org/sampledata/north_carolina/nc_spm_08_grass7.zip) sample dataset:
-```
-g.region n=223500 s=221500 w=637000 e=641000 res=10
-r.earthworks elevation=elevation earthworks=earthworks function=linear lines=roadsmajor z=90 flat=30 spacing=10
-r.colors -e map=elevation,earthworks color=elevation
+To grade a road crossing over a valley in the 
+[North Carolina](https://grass.osgeo.org/sampledata/north_carolina/nc_basic_spm_grass7.zip)
+sample dataset, run:
+```sh
+g.region n=217700 s=216200 w=639200 e=640700 res=10
+r.earthworks elevation=elevation earthworks=earthworks lines=roadsmajor z=95 rate=0.25 operation=fill flat=25
+r.contour input=earthworks output=contours step=2
 ```
 
-![Elevation](elevation.png)
-
-![Earthworks](earthworks.png)
+| Elevation | Earthworks |
+| --------- | ---------- |
+| ![Elevation](elevation.png) | ![Earthworks](earthworks.png) |
