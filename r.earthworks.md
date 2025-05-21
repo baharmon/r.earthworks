@@ -102,7 +102,7 @@ r.earthworks elevation=elevation earthworks=peak operation=fill coordinates=250,
 ```
 | Fill | Fill 3D|
 | ---- | ------ |
-| ![Fill operation](earthworks_1.png) | ![3D fill operation](earthworks_2.png) |
+| ![Fill operation](r_earthworks_01.png) | ![3D fill operation](r_earthworks_02.png) |
 
 **Cut Operation**
 Model a pit from a set of x- and y-coordinates with *r.earthworks*. 
@@ -112,7 +112,7 @@ r.earthworks elevation=elevation earthworks=pit operation=cut coordinates=250,25
 ```
 | Cut | Cut 3D|
 | ---- | ---- |
-| ![Cut operation](earthworks_3.png) | ![3D cut operation](earthworks_4.png) |
+| ![Cut operation](r_earthworks_03.png) | ![3D cut operation](r_earthworks_04.png) |
 
 **Cut & Fill Operation**
 Model a pit and a peak from two sets of x- and y-coordinates 
@@ -124,7 +124,7 @@ r.earthworks elevation=elevation earthworks=peak_and_pit operation=cutfill coord
 ```
 | Cut & Fill | Cut & Fill 3D|
 | ---------- | ------------ |
-| ![Cut-fill operation](earthworks_5.png) | ![3D cut-fill operation](earthworks_6.png) |
+| ![Cut-fill operation](r_earthworks_05.png) | ![3D cut-fill operation](r_earthworks_06.png) |
 
 ### Road Grading
 Use a vector map of a road network
@@ -154,7 +154,7 @@ r.contour input=earthworks output=contours step=2
 ```
 | Elevation | Earthworks |
 | --------- | ---------- |
-| ![Elevation](earthworks_7.png) | ![Earthworks](earthworks_8.png) |
+| ![Elevation](r_earthworks_07.png) | ![Earthworks](r_earthworks_08.png) |
 
 <!-- Print volume of fill -->
 
@@ -190,7 +190,7 @@ r.lake --overwrite elevation=earthworks water_level=104 lake=lake coordinates=63
 ```
 | Dam | Dam Breach |
 | --------- | ---------- |
-| ![Dam](earthworks_9.png) | ![Dam Breach](earthworks_10.png) |
+| ![Dam](r_earthworks_09.png) | ![Dam Breach](r_earthworks_10.png) |
 
 
 <!-- ## TODO -->
