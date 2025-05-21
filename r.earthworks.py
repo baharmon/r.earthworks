@@ -203,7 +203,7 @@ def convert_coordinates(coordinates, z):
     cz = z.split(',')
     if len(cz) > 1 and len(cz) != len(cx):
         grass.warning(
-            'Number of z-values does not match xy-coordinates!'
+            _('Number of z-values does not match xy-coordinates!')
             )
 
     # convert coordinates with constant z value
@@ -676,7 +676,7 @@ def print_difference(operation, volume):
         net = nsres * ewres * float(univar['sum'])
         if math.isnan(net):
             net = 0
-        grass.info(f'Net change: {net} cubic {units.lower()}')
+        grass.info(_(f'Net change: {net} cubic {units.lower()}')
 
     # print fill
     if operation in {'cutfill', 'fill'}:
@@ -693,7 +693,7 @@ def print_difference(operation, volume):
         net = nsres * ewres * float(univar['sum'])
         if math.isnan(net):
             net = 0.0
-        grass.info(f'Net fill: {net} cubic {units.lower()}')
+        grass.info(_(f'Net fill: {net} cubic {units.lower()}'))
 
     # print cut
     if operation in {'cutfill', 'cut'}:
@@ -710,7 +710,7 @@ def print_difference(operation, volume):
         net = nsres * ewres * float(univar['sum'])
         if math.isnan(net):
             net = 0.0
-        grass.info(f'Net cut: {net} cubic {units.lower()}')
+        grass.info(_(f'Net cut: {net} cubic {units.lower()}'))
 
 def postprocess(earthworks):
     """
@@ -768,7 +768,7 @@ def main():
             coordinates = convert_raster(raster)
         else:
             grass.error(
-                'A raster, vector, or set of coordinates is required!'
+                _('A raster, vector, or set of coordinates is required!')
                 )
 
         # create empty lists
