@@ -18,4 +18,4 @@ r.contour input=earthworks output=contours step=2
 
 | Elevation | Earthworks |
 | --------- | ---------- |
-| ![Elevation](elevation.png) | ![Earthworks](earthworks.png) |
+| ![Elevation](r_earthworks_07.png) | ![Earthworks](r_earthworks_08.png) |
