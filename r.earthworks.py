@@ -51,7 +51,7 @@
 # % description: Earthworking mode
 # % descriptions: relative;Relative to exisiting topography;absolute;At given elevation
 # % required: yes
-#%end
+# %end
 
 # %option
 # % key: operation
@@ -61,7 +61,7 @@
 # % description: Earthworking operation
 # % descriptions: cut;Cut into topography;fill;Fill ontop topography;cutfill;Cut and fill
 # % required: yes
-#%end
+# %end
 
 # %option
 # % key: function
@@ -71,7 +71,7 @@
 # % description: Earthworking function
 # % descriptions: linear;linear decay function;exponential;Exponential decay function
 # % required: yes
-#%end
+# %end
 
 # %option G_OPT_R_INPUT
 # % key: raster
@@ -104,43 +104,43 @@
 # % guisection: Input
 # %end
 
-#%option
-#% key: z
-#% type: double
-#% description: Elevation value
-#% label: Elevation value
-#% answer: 1.0
-#% multiple: yes
-#% guisection: Input
-#%end
+# %option
+# % key: z
+# % type: double
+# % description: Elevation value
+# % label: Elevation value
+# % answer: 1.0
+# % multiple: yes
+# % guisection: Input
+# %end
 
-#%option
-#% key: rate
-#% type: double
-#% description: Rate of decay
-#% label: Rate of decay
-#% answer: 0.1
-#% multiple: no
-#% guisection: Function
-#%end
+# %option
+# % key: rate
+# % type: double
+# % description: Rate of decay
+# % label: Rate of decay
+# % answer: 0.1
+# % multiple: no
+# % guisection: Function
+# %end
 
-#%option
-#% key: flat
-#% type: double
-#% description: Radius of flats
-#% label: Radius of flats
-#% answer: 0.0
-#% multiple: no
-#% guisection: Input
-#%end
+# %option
+# % key: flat
+# % type: double
+# % description: Radius of flats
+# % label: Radius of flats
+# % answer: 0.0
+# % multiple: no
+# % guisection: Input
+# %end
 
-#%flag
-#% key: p
-#% description: Print volume
-#%end
+# %flag
+# % key: p
+# % description: Print volume
+# %end
 
 # import libraries
-import grass.script as grass
+import grass.script as gs
 from itertools import repeat
 from itertools import batched
 import sys
@@ -150,6 +150,7 @@ import math
 # set global variables
 temporary = []
 
+
 def clean(temporary):
     """
     Remove temporary maps
@@ -157,15 +158,12 @@ def clean(temporary):
 
     # remove temporary maps
     try:
-        grass.run_command(
-            'g.remove',
-            type='raster',
-            name=[temporary],
-            flags='f',
-            superquiet=True
-            )
+        gs.run_command(
+            "g.remove", type="raster", name=[temporary], flags="f", superquiet=True
+        )
     except:
         pass
+
 
 def convert_raster(raster):
     """
@@ -173,23 +171,20 @@ def convert_raster(raster):
     """
 
     # parse raster
-    data = grass.parse_command(
-        'r.stats',
-        input=raster,
-        flags=['gn']
-        )
+    data = gs.parse_command("r.stats", input=raster, flags=["gn"])
 
     # find coordinates
     coordinates = []
     for datum in data.keys():
-        xyz = datum.split(' ')
+        xyz = datum.split(" ")
         x = xyz[0]
         y = xyz[1]
         z = xyz[2]
         coordinate = [x, y, z]
         coordinates.append(coordinate)
-    
+
     return coordinates
+
 
 def convert_coordinates(coordinates, z):
     """
@@ -197,33 +192,24 @@ def convert_coordinates(coordinates, z):
     """
 
     # parse input coordinates
-    coordinates = coordinates.split(',')
+    coordinates = coordinates.split(",")
     cx = coordinates[::2]
     cy = coordinates[1::2]
-    cz = z.split(',')
+    cz = z.split(",")
     if len(cz) > 1 and len(cz) != len(cx):
-        grass.warning(
-            _('Number of z-values does not match xy-coordinates!')
-            )
+        gs.warning(_("Number of z-values does not match xy-coordinates!"))
 
     # convert coordinates with constant z value
     if len(cz) == 1:
-        coordinates = [
-            [float(x), float(y), float(z)]
-            for x, y
-            in zip(cx, cy)
-            ]
+        coordinates = [[float(x), float(y), float(z)] for x, y in zip(cx, cy)]
 
     # # convert coordinates with list of z values
     elif len(cz) > 1:
-        coordinates = [
-            [float(x), float(y), float(z)]
-            for x, y, z
-            in zip(cx, cy, cz)
-            ]
+        coordinates = [[float(x), float(y), float(z)] for x, y, z in zip(cx, cy, cz)]
 
     return coordinates
-    
+
+
 def convert_points(points, mode, z):
     """
     Convert points to coordinates
@@ -233,30 +219,25 @@ def convert_points(points, mode, z):
     coordinates = []
 
     # get info
-    info = grass.parse_command(
-        'v.info',
-        map=points,
-        flags='t'
-        )
+    info = gs.parse_command("v.info", map=points, flags="t")
 
     # convert 2D points
-    if info['map3d'] == '0':
-
+    if info["map3d"] == "0":
         # parse points
-        data = grass.parse_command(
-            'v.to.db',
+        data = gs.parse_command(
+            "v.to.db",
             map=points,
-            option='coor',
-            separator='comma',
-            flags='p',
+            option="coor",
+            separator="comma",
+            flags="p",
             overwrite=True,
-            superquiet=True
-            )
+            superquiet=True,
+        )
 
         # find coordinates
         coordinates = []
         for datum in data.keys():
-            xyz = datum.split(',')
+            xyz = datum.split(",")
             x = float(xyz[1])
             y = float(xyz[2])
             z = float(z)
@@ -264,30 +245,30 @@ def convert_points(points, mode, z):
             coordinates.append(coordinate)
 
     # convert 3D points
-    elif info['map3d'] == '1':
-
+    elif info["map3d"] == "1":
         # parse points
-        data = grass.parse_command(
-            'v.to.db',
+        data = gs.parse_command(
+            "v.to.db",
             map=points,
-            option='coor',
-            separator='comma',
-            flags='p',
+            option="coor",
+            separator="comma",
+            flags="p",
             overwrite=True,
-            superquiet=True
-            )
+            superquiet=True,
+        )
 
         # find coordinates
         coordinates = []
         for datum in data.keys():
-            xyz = datum.split(',')
+            xyz = datum.split(",")
             x = float(xyz[1])
             y = float(xyz[2])
             z = float(xyz[3])
             coordinate = [x, y, z]
             coordinates.append(coordinate)
-    
+
     return coordinates
+
 
 def convert_lines(lines, z):
     """
@@ -295,57 +276,52 @@ def convert_lines(lines, z):
     """
 
     # get info
-    info = grass.parse_command(
-        'v.info',
-        map=lines,
-        flags='t'
-        )
+    info = gs.parse_command("v.info", map=lines, flags="t")
 
     # convert 2D lines
-    if info['map3d'] == '0':
-
+    if info["map3d"] == "0":
         # convert lines to raster
-        raster = grass.append_uuid('raster')
+        raster = gs.append_uuid("raster")
         temporary.append(raster)
-        grass.run_command(
-            'v.to.rast',
+        gs.run_command(
+            "v.to.rast",
             input=lines,
             output=raster,
-            use='value',
+            use="value",
             value=z,
             overwrite=True,
-            superquiet=True
-            )
+            superquiet=True,
+        )
 
     # convert 3D lines
-    elif info['map3d'] == '1':
-
+    elif info["map3d"] == "1":
         # convert 3D lines to raster
-        points = grass.append_uuid('points')
-        raster = grass.append_uuid('raster')
+        points = gs.append_uuid("points")
+        raster = gs.append_uuid("raster")
         temporary.extend([points, raster])
-        region = grass.parse_command('g.region', flags=['g'])
-        nsres = float(region['nsres'])
-        ewres = float(region['ewres'])
+        region = gs.parse_command("g.region", flags=["g"])
+        nsres = float(region["nsres"])
+        ewres = float(region["ewres"])
         res = math.sqrt(nsres * ewres)
-        grass.run_command(
-            'v.to.points',
+        gs.run_command(
+            "v.to.points",
             input=lines,
             output=points,
             dmax=res,
             overwrite=True,
-            superquiet=True
-            )
-        grass.run_command(
-            'v.to.rast',
+            superquiet=True,
+        )
+        gs.run_command(
+            "v.to.rast",
             input=points,
             output=raster,
-            use='z',
+            use="z",
             overwrite=True,
-            superquiet=True
-            )
+            superquiet=True,
+        )
 
     return raster
+
 
 def earthworking(
     batch_size,
@@ -358,8 +334,8 @@ def earthworking(
     operation,
     earthworks,
     cut,
-    fill
-    ):
+    fill,
+):
     """
     Model local earthworks
     """
@@ -375,7 +351,6 @@ def earthworking(
 
     # loop through batch
     for i in range(batch_size):
-
         # parse coordinate
         x = batch[i][0]
         y = batch[i][1]
@@ -383,164 +358,141 @@ def earthworking(
 
         # append expression for calculating distance
         dxy.append(
-            f'dxy_{i}'
-            f'= sqrt(((x() - {x})'
-            f'* (x() - {x}))'
-            f'+ ((y() - {y})'
-            f'* (y() - {y})))'
-            )
+            f"dxy_{i}= sqrt(((x() - {x})* (x() - {x}))+ ((y() - {y})* (y() - {y})))"
+        )
 
         # append expression for calculating flats
         if flat > 0.0:
-            flats.append(
-                f'dxy_{i} = if(dxy_{i} <= {flat}, 0, dxy_{i} - {flat})'
-                )
+            flats.append(f"dxy_{i} = if(dxy_{i} <= {flat}, 0, dxy_{i} - {flat})")
         else:
-            flats.append(
-                f'dxy_{i} = dxy_{i}'
-                )
+            flats.append(f"dxy_{i} = dxy_{i}")
 
         # append expression for calculating relative elevation
-        if mode == 'relative':
-            dz.append(
-                f'dz_{i} = {z}'
-                )
+        if mode == "relative":
+            dz.append(f"dz_{i} = {z}")
 
         # append expression for calculating absolute elevation
-        elif mode == 'absolute': 
-            dz.append(
-                f'dz_{i} = {z} - {elevation}'
-                )
+        elif mode == "absolute":
+            dz.append(f"dz_{i} = {z} - {elevation}")
 
         # append expressions for linear function
-        if function == 'linear':
+        if function == "linear":
             # z = C - r * t
 
             # append expression for calculating growth
-            growth.append(
-                f'growth_{i} = dz_{i} - (-{rate}) * dxy_{i}'
-                )
+            growth.append(f"growth_{i} = dz_{i} - (-{rate}) * dxy_{i}")
 
             # append expression for calculating decay
-            decay.append(
-                f'decay_{i} = dz_{i} - {rate} * dxy_{i}'
-                )
+            decay.append(f"decay_{i} = dz_{i} - {rate} * dxy_{i}")
 
         # append expression for exponential function
-        elif function == 'exponential':
+        elif function == "exponential":
             # z = z0 * e^(-lamba * t)
 
             # append expression for calculating growth
-            growth.append(
-                f'growth_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))'
-                )
+            growth.append(f"growth_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))")
 
             # append expression for calculating decay
-            decay.append(
-                f'decay_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))'
-                )
+            decay.append(f"decay_{i} = dz_{i} * exp({math.e}, (-{rate} * dxy_{i}))")
 
         # append expression for cut operation
-        if operation == 'cut':
+        if operation == "cut":
             cut_operations.append(
-                f'if({elevation} + growth_{i} <= {elevation},'
-                f'{elevation} + growth_{i},'
-                f'{elevation})'
-                )
+                f"if({elevation} + growth_{i} <= {elevation},"
+                f"{elevation} + growth_{i},"
+                f"{elevation})"
+            )
 
         # append expression for fill operation
-        elif operation == 'fill':
+        elif operation == "fill":
             fill_operations.append(
-                f'if({elevation} + decay_{i} >= {elevation},'
-                f'{elevation} + decay_{i},'
-                f'{elevation})'
-                )
+                f"if({elevation} + decay_{i} >= {elevation},"
+                f"{elevation} + decay_{i},"
+                f"{elevation})"
+            )
 
         # append expression for cut-fill operation
-        elif operation == 'cutfill':
-
+        elif operation == "cutfill":
             # append expression for cut operation
             cut_operations.append(
-                f'if({elevation} + growth_{i} <= {elevation},'
-                f'{elevation} + growth_{i},'
-                f'null())'
-                )
+                f"if({elevation} + growth_{i} <= {elevation},"
+                f"{elevation} + growth_{i},"
+                f"null())"
+            )
 
             # append expression for fill operation
             fill_operations.append(
-                f'if({elevation} + decay_{i} >= {elevation},'
-                f'{elevation} + decay_{i},'
-                f'null())'
-                )
+                f"if({elevation} + decay_{i} >= {elevation},"
+                f"{elevation} + decay_{i},"
+                f"null())"
+            )
 
     # model cut operation
-    if operation == 'cut':
-
+    if operation == "cut":
         # model earthworks
-        grass.mapcalc(
-            f'{cut}'
-            f'= eval('
-            f'{",".join(dxy)},'
-            f'{",".join(flats)},'
-            f'{",".join(dz)},'
-            f'{",".join(growth)},'
-            f'min('
-            f'{",".join(cut_operations)}'
-            f')'
-            f')',
-            overwrite=True
-            )
+        gs.mapcalc(
+            f"{cut}"
+            f"= eval("
+            f"{','.join(dxy)},"
+            f"{','.join(flats)},"
+            f"{','.join(dz)},"
+            f"{','.join(growth)},"
+            f"min("
+            f"{','.join(cut_operations)}"
+            f")"
+            f")",
+            overwrite=True,
+        )
 
     # model fill operation
-    elif operation == 'fill':
-
+    elif operation == "fill":
         # model earthworks
-        grass.mapcalc(
-            f'{fill}'
-            f'= eval('
-            f'{",".join(dxy)},'
-            f'{",".join(flats)},'
-            f'{",".join(dz)},'
-            f'{",".join(decay)},'
-            f'max('
-            f'{",".join(fill_operations)}'
-            f')'
-            f')',
-            overwrite=True
-            )
+        gs.mapcalc(
+            f"{fill}"
+            f"= eval("
+            f"{','.join(dxy)},"
+            f"{','.join(flats)},"
+            f"{','.join(dz)},"
+            f"{','.join(decay)},"
+            f"max("
+            f"{','.join(fill_operations)}"
+            f")"
+            f")",
+            overwrite=True,
+        )
 
     # model cut-fill operation
-    elif operation == 'cutfill':
-
+    elif operation == "cutfill":
         # model cut
-        grass.mapcalc(
-            f'{cut}'
-            f'= eval('
-            f'{",".join(dxy)},'
-            f'{",".join(flats)},'
-            f'{",".join(dz)},'
-            f'{",".join(growth)},'
-            f'nmin('
-            f'{",".join(cut_operations)}'
-            f')'
-            f')',
-            overwrite=True
-            )
+        gs.mapcalc(
+            f"{cut}"
+            f"= eval("
+            f"{','.join(dxy)},"
+            f"{','.join(flats)},"
+            f"{','.join(dz)},"
+            f"{','.join(growth)},"
+            f"nmin("
+            f"{','.join(cut_operations)}"
+            f")"
+            f")",
+            overwrite=True,
+        )
 
         # model fill
-        grass.mapcalc(
-            f'{fill}'
-            f'= eval('
-            f'{",".join(dxy)},'
-            f'{",".join(flats)},'
-            f'{",".join(dz)},'
-            f'{",".join(decay)},'
-            f'nmax('
-            f'{",".join(fill_operations)}'
-            f')'
-            f')',
-            overwrite=True
-            )
+        gs.mapcalc(
+            f"{fill}"
+            f"= eval("
+            f"{','.join(dxy)},"
+            f"{','.join(flats)},"
+            f"{','.join(dz)},"
+            f"{','.join(decay)},"
+            f"nmax("
+            f"{','.join(fill_operations)}"
+            f")"
+            f")",
+            overwrite=True,
+        )
+
 
 def series(operation, cuts, fills, elevation, earthworks):
     """
@@ -548,78 +500,73 @@ def series(operation, cuts, fills, elevation, earthworks):
     """
 
     # model net cut
-    if operation == 'cut':
-
+    if operation == "cut":
         # calculate minimum cut
-        grass.run_command(
-            'r.series',
+        gs.run_command(
+            "r.series",
             input=cuts,
             output=earthworks,
-            method='minimum',
-            flags='z',
-            overwrite=True
-            )
+            method="minimum",
+            flags="z",
+            overwrite=True,
+        )
 
     # model net fill
-    elif operation == 'fill':
-
+    elif operation == "fill":
         # calculate maximum fill
-        grass.run_command(
-            'r.series',
+        gs.run_command(
+            "r.series",
             input=fills,
             output=earthworks,
-            method='maximum',
-            flags='z',
-            overwrite=True
-            )
+            method="maximum",
+            flags="z",
+            overwrite=True,
+        )
 
     # model net cut and fill
-    elif operation == 'cutfill':
-
+    elif operation == "cutfill":
         # calculate minimum cut
-        cut = grass.append_uuid('cut')
+        cut = gs.append_uuid("cut")
         temporary.append(cut)
-        grass.run_command(
-            'r.series',
+        gs.run_command(
+            "r.series",
             input=cuts,
             output=cut,
-            method='minimum',
-            flags='z',
-            overwrite=True
-            )
+            method="minimum",
+            flags="z",
+            overwrite=True,
+        )
 
         # calculate maximum fill
-        fill = grass.append_uuid('fill')
+        fill = gs.append_uuid("fill")
         temporary.append(fill)
-        grass.run_command(
-            'r.series',
+        gs.run_command(
+            "r.series",
             input=fills,
             output=fill,
-            method='maximum',
-            flags='z',
-            overwrite=True
-            )
+            method="maximum",
+            flags="z",
+            overwrite=True,
+        )
 
         # calculate sum of cut and fill
-        cutfill = grass.append_uuid('cutfill')
+        cutfill = gs.append_uuid("cutfill")
         temporary.append(cutfill)
-        grass.run_command(
-            'r.series',
+        gs.run_command(
+            "r.series",
             input=[cut, fill],
             output=cutfill,
-            method='sum',
-            flags='z',
-            overwrite=True
-            )
+            method="sum",
+            flags="z",
+            overwrite=True,
+        )
 
         # calculate net cut and fill
-        grass.mapcalc(
-            f'{earthworks}'
-            f'= if(isnull({cutfill}),'
-            f'{elevation},'
-            f'{cutfill})',
-            overwrite=True
-            )
+        gs.mapcalc(
+            f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})",
+            overwrite=True,
+        )
+
 
 def difference(elevation, earthworks, volume):
     """
@@ -628,30 +575,20 @@ def difference(elevation, earthworks, volume):
 
     # create temporary raster
     if not volume:
-        volume = grass.append_uuid('volume')
+        volume = gs.append_uuid("volume")
         temporary.append(volume)
 
     # model earthworks
-    grass.mapcalc(
-        f'{volume} = {earthworks} - {elevation}',
-        overwrite=True
-        )
+    gs.mapcalc(f"{volume} = {earthworks} - {elevation}", overwrite=True)
 
     # set color gradient
-    grass.run_command(
-        'r.colors',
-        map=volume,
-        color='viridis',
-        superquiet=True
-        )
+    gs.run_command("r.colors", map=volume, color="viridis", superquiet=True)
 
     # save history
-    grass.raster_history(
-        volume,
-        overwrite=True
-        )
+    gs.raster_history(volume, overwrite=True)
 
     return volume
+
 
 def print_difference(operation, volume):
     """
@@ -659,58 +596,46 @@ def print_difference(operation, volume):
     """
 
     # find resolution
-    region = grass.parse_command('g.region', flags=['g'])
-    nsres = float(region['nsres'])
-    ewres = float(region['ewres'])
+    region = gs.parse_command("g.region", flags=["g"])
+    nsres = float(region["nsres"])
+    ewres = float(region["ewres"])
 
     # find units
-    projection = grass.parse_command('g.proj', flags=['g'])
-    units = projection.get('units', 'units')
+    projection = gs.parse_command("g.proj", flags=["g"])
+    units = projection.get("units", "units")
 
     # print net change
-    if operation == 'cutfill':
-        univar = grass.parse_command('r.univar',
-            map=volume,
-            separator='newline',
-            flags='g')
-        net = nsres * ewres * float(univar['sum'])
+    if operation == "cutfill":
+        univar = gs.parse_command(
+            "r.univar", map=volume, separator="newline", flags="g"
+        )
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0
-        grass.info(_(f'Net change: {net} cubic {units.lower()}')
+        gs.info(f"Net change: {net} cubic {units.lower()}")
 
     # print fill
-    if operation in {'cutfill', 'fill'}:
-        fill = grass.append_uuid('fill')
+    if operation in {"cutfill", "fill"}:
+        fill = gs.append_uuid("fill")
         temporary.append(fill)
-        grass.mapcalc(
-            f'{fill} = if({volume} > 0, {volume}, null())',
-            overwrite=True
-            )
-        univar = grass.parse_command('r.univar',
-            map=fill,
-            separator='newline',
-            flags='g')
-        net = nsres * ewres * float(univar['sum'])
+        gs.mapcalc(f"{fill} = if({volume} > 0, {volume}, null())", overwrite=True)
+        univar = gs.parse_command("r.univar", map=fill, separator="newline", flags="g")
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0.0
-        grass.info(_(f'Net fill: {net} cubic {units.lower()}'))
+        gs.info(f"Net fill: {net} cubic {units.lower()}")
 
     # print cut
-    if operation in {'cutfill', 'cut'}:
-        cut = grass.append_uuid('cut')
+    if operation in {"cutfill", "cut"}:
+        cut = gs.append_uuid("cut")
         temporary.append(cut)
-        grass.mapcalc(
-            f'{cut} = if({volume} < 0, {volume}, null())',
-            overwrite=True
-            )
-        univar = grass.parse_command('r.univar',
-            map=cut,
-            separator='newline',
-            flags='g')
-        net = nsres * ewres * float(univar['sum'])
+        gs.mapcalc(f"{cut} = if({volume} < 0, {volume}, null())", overwrite=True)
+        univar = gs.parse_command("r.univar", map=cut, separator="newline", flags="g")
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0.0
-        grass.info(_(f'Net cut: {net} cubic {units.lower()}'))
+        gs.info(f"Net cut: {net} cubic {units.lower()}")
+
 
 def postprocess(earthworks):
     """
@@ -718,18 +643,11 @@ def postprocess(earthworks):
     """
 
     # set colors
-    grass.run_command(
-        'r.colors',
-        map=earthworks,
-        color='viridis',
-        superquiet=True
-        )
+    gs.run_command("r.colors", map=earthworks, color="viridis", superquiet=True)
 
     # save history
-    grass.raster_history(
-        earthworks,
-        overwrite=True
-        )
+    gs.raster_history(earthworks, overwrite=True)
+
 
 def main():
     """
@@ -737,25 +655,24 @@ def main():
     """
 
     # get input options
-    options, flags = grass.parser()
-    elevation = options['elevation']
-    earthworks = options['earthworks']
-    volume = options['volume']
-    mode = options['mode']
-    operation = options['operation']
-    function = options['function']
-    rate = abs(float(options['rate']))
-    raster = options['raster']
-    points = options['points']
-    lines = options['lines']
-    coordinates = options['coordinates']
-    z = options['z']
-    flat = float(options['flat'])
-    print_volume = flags['p']
+    options, flags = gs.parser()
+    elevation = options["elevation"]
+    earthworks = options["earthworks"]
+    volume = options["volume"]
+    mode = options["mode"]
+    operation = options["operation"]
+    function = options["function"]
+    rate = abs(float(options["rate"]))
+    raster = options["raster"]
+    points = options["points"]
+    lines = options["lines"]
+    coordinates = options["coordinates"]
+    z = options["z"]
+    flat = float(options["flat"])
+    print_volume = flags["p"]
 
     # run processes
     try:
-
         # convert inputs
         if raster:
             coordinates = convert_raster(raster)
@@ -767,9 +684,7 @@ def main():
             raster = convert_lines(lines, z)
             coordinates = convert_raster(raster)
         else:
-            grass.error(
-                _('A raster, vector, or set of coordinates is required!')
-                )
+            gs.error(_("A raster, vector, or set of coordinates is required!"))
 
         # create empty lists
         cuts = []
@@ -779,24 +694,23 @@ def main():
         batch_size = 256
         batches = list(batched(coordinates, batch_size))
         for batch in batches:
-
             # set current batch size
             batch_size = len(batch)
 
             # create temporary rasters
-            if operation == 'cut':
-                cut = grass.append_uuid('cut')
+            if operation == "cut":
+                cut = gs.append_uuid("cut")
                 fill = None
                 cuts.append(cut)
                 temporary.append(cut)
-            elif operation == 'fill':
+            elif operation == "fill":
                 cut = None
-                fill = grass.append_uuid('fill')
+                fill = gs.append_uuid("fill")
                 fills.append(fill)
                 temporary.append(fill)
-            elif operation == 'cutfill':
-                cut = grass.append_uuid('cut')
-                fill = grass.append_uuid('fill')
+            elif operation == "cutfill":
+                cut = gs.append_uuid("cut")
+                fill = gs.append_uuid("fill")
                 cuts.append(cut)
                 fills.append(fill)
                 temporary.append(cut)
@@ -814,8 +728,8 @@ def main():
                 operation,
                 earthworks,
                 cut,
-                fill
-                )
+                fill,
+            )
 
         # model composite earthworks
         series(operation, cuts, fills, elevation, earthworks)
@@ -834,6 +748,7 @@ def main():
     # clean up
     finally:
         atexit.register(clean, temporary)
+
 
 if __name__ == "__main__":
     sys.exit(main())
