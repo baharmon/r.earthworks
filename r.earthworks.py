@@ -150,15 +150,17 @@ import math
 # set global variables
 temporary = []
 
+
 def batched(iterable, n):
     """Batch iterable into tuples"""
 
     # implementation of itertools.batched
     if n < 1:
-        raise ValueError('n must be at least one')
+        raise ValueError("n must be at least one")
     iterator = iter(iterable)
     while batch := tuple(islice(iterator, n)):
         yield batch
+
 
 def clean(temporary):
     """
