@@ -783,9 +783,7 @@ def main():
 
     # clean up
     finally:
-        #atexit.register(clean, temporary)
-        pass
-
+        atexit.register(clean, temporary)
 
 if __name__ == "__main__":
     sys.exit(main())
