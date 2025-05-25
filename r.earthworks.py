@@ -360,6 +360,28 @@ def earthworking(
     cut_operations = []
     fill_operations = []
 
+    # use temporary region
+    gs.use_temp_region()
+
+    # unzip coordinates
+    x, y, z = zip(*batch)
+
+    # calculate absolute values 
+    x = [abs(x) for x in x]
+    y = [abs(y) for y in y]
+    z = [abs(z) for z in z]
+
+    # solve bounds
+    n = max(y)
+    s = min(y)
+    e = max(x)
+    w = min(x)
+    delta_z = max(z)
+    delta_xy = (delta_z / rate) + flat
+
+    # set temporary region
+    gs.run_command("g.region", n=n, s=s, e=e, w=w, grow=delta_xy, align=elevation)
+
     # loop through batch
     for i in range(batch_size):
         # parse coordinate
@@ -503,6 +525,9 @@ def earthworking(
             f")",
             overwrite=True,
         )
+
+    # delete temporary region
+    gs.del_temp_region()
 
 
 def series(operation, cuts, fills, elevation, earthworks):
@@ -758,7 +783,8 @@ def main():
 
     # clean up
     finally:
-        atexit.register(clean, temporary)
+        #atexit.register(clean, temporary)
+        pass
 
 
 if __name__ == "__main__":
