@@ -5,7 +5,7 @@
 #
 # AUTHOR(S): Brendan Harmon <brendan.harmon@gmail.com>
 #
-# PURPOSE:   Earthworks
+# PURPOSE:   Terrain modeling with cut and fill operations
 #
 # COPYRIGHT: (C) 2024 by Brendan Harmon and the GRASS Development Team
 #
@@ -367,9 +367,9 @@ def earthworking(
     x, y, z = zip(*batch)
 
     # calculate absolute values 
-    x = [abs(x) for x in x]
-    y = [abs(y) for y in y]
-    z = [abs(z) for z in z]
+    x = [abs(float(x)) for x in x]
+    y = [abs(float(y)) for y in y]
+    z = [abs(float(z)) for z in z]
 
     # solve bounds
     n = max(y)
@@ -384,6 +384,7 @@ def earthworking(
 
     # loop through batch
     for i in range(batch_size):
+
         # parse coordinate
         x = batch[i][0]
         y = batch[i][1]
@@ -433,7 +434,7 @@ def earthworking(
             cut_operations.append(
                 f"if({elevation} + growth_{i} <= {elevation},"
                 f"{elevation} + growth_{i},"
-                f"{elevation})"
+                f"null())"
             )
 
         # append expression for fill operation
@@ -441,7 +442,7 @@ def earthworking(
             fill_operations.append(
                 f"if({elevation} + decay_{i} >= {elevation},"
                 f"{elevation} + decay_{i},"
-                f"{elevation})"
+                f"null())"
             )
 
         # append expression for cut-fill operation
@@ -470,7 +471,7 @@ def earthworking(
             f"{','.join(flats)},"
             f"{','.join(dz)},"
             f"{','.join(growth)},"
-            f"min("
+            f"nmin("
             f"{','.join(cut_operations)}"
             f")"
             f")",
@@ -487,7 +488,7 @@ def earthworking(
             f"{','.join(flats)},"
             f"{','.join(dz)},"
             f"{','.join(decay)},"
-            f"max("
+            f"nmax("
             f"{','.join(fill_operations)}"
             f")"
             f")",
@@ -538,24 +539,38 @@ def series(operation, cuts, fills, elevation, earthworks):
     # model net cut
     if operation == "cut":
         # calculate minimum cut
+        cut = gs.append_uuid("cut")
+        temporary.append(cut)
         gs.run_command(
             "r.series",
             input=cuts,
-            output=earthworks,
+            output=cut,
             method="minimum",
             flags="z",
+            overwrite=True,
+        )
+        # calculate net cut
+        gs.mapcalc(
+            f"{earthworks}= if(isnull({cut}),{elevation},{cut})",
             overwrite=True,
         )
 
     # model net fill
     elif operation == "fill":
         # calculate maximum fill
+        fill = gs.append_uuid("fill")
+        temporary.append(fill)
         gs.run_command(
             "r.series",
             input=fills,
-            output=earthworks,
+            output=fill,
             method="maximum",
             flags="z",
+            overwrite=True,
+        )
+        # calculate net fill
+        gs.mapcalc(
+            f"{earthworks}= if(isnull({fill}),{elevation},{fill})",
             overwrite=True,
         )
 
@@ -727,7 +742,8 @@ def main():
         fills = []
 
         # batch process coordinates
-        batch_size = 256
+        batch_size = 128
+        coordinates = sorted(coordinates)
         batches = list(batched(coordinates, batch_size))
         for batch in batches:
             # set current batch size
