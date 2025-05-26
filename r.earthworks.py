@@ -366,7 +366,7 @@ def earthworking(
     # unzip coordinates
     x, y, z = zip(*batch)
 
-    # calculate absolute values 
+    # calculate absolute values
     x = [abs(float(x)) for x in x]
     y = [abs(float(y)) for y in y]
     z = [abs(float(z)) for z in z]
@@ -384,7 +384,6 @@ def earthworking(
 
     # loop through batch
     for i in range(batch_size):
-
         # parse coordinate
         x = batch[i][0]
         y = batch[i][1]
@@ -800,6 +799,7 @@ def main():
     # clean up
     finally:
         atexit.register(clean, temporary)
+
 
 if __name__ == "__main__":
     sys.exit(main())
