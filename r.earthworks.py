@@ -19,8 +19,7 @@
 # %module
 # % description: Earthworks
 # % keyword: raster
-# % keyword: algebra
-# % keyword: random
+# % keyword: terrain
 # %end
 
 # %option G_OPT_R_INPUT
@@ -32,14 +31,14 @@
 # %option G_OPT_R_OUTPUT
 # % key: earthworks
 # % description: Output elevation raster
-# % label: Earthworks
+# % label: Output earthworks
 # % answer: earthworks
 # %end
 
 # %option G_OPT_R_OUTPUT
 # % key: volume
-# % description: Volumetric change
-# % label: Volume
+# % description: Output volumetric change raster
+# % label: Output volume
 # % required: no
 # %end
 
@@ -75,15 +74,15 @@
 
 # %option G_OPT_R_INPUT
 # % key: raster
-# % description: Raster
+# % description: Input raster spot elevations
 # % label: Input raster spot elevations
 # % required: no
 # % guisection: Input
 # %end
 
 # %option G_OPT_M_COORDS
+# % description: Seed point coordinates
 # % label: Seed point coordinates
-# % description: Coordinates
 # % required: no
 # % guisection: Input
 # %end
@@ -121,7 +120,7 @@
 # % label: Rate of decay
 # % answer: 0.1
 # % multiple: no
-# % guisection: Function
+# % guisection: Input
 # %end
 
 # %option
@@ -134,9 +133,24 @@
 # % guisection: Input
 # %end
 
+# %option
+# % key: border
+# % type: double
+# % description: Border for adaptive region
+# % label: Border for adaptive region
+# % answer: 1000
+# % multiple: no
+# % guisection: Input
+# %end
+
 # %flag
 # % key: p
 # % description: Print volume
+# %end
+
+# %flag
+# % key: r
+# % description: Disable adaptive region
 # %end
 
 # import libraries
@@ -242,7 +256,7 @@ def convert_points(points, mode, z):
             separator="comma",
             flags="p",
             overwrite=True,
-            superquiet=True,
+            superquiet=True
         )
 
         # find coordinates
@@ -265,7 +279,7 @@ def convert_points(points, mode, z):
             separator="comma",
             flags="p",
             overwrite=True,
-            superquiet=True,
+            superquiet=True
         )
 
         # find coordinates
@@ -301,7 +315,7 @@ def convert_lines(lines, z):
             use="value",
             value=z,
             overwrite=True,
-            superquiet=True,
+            superquiet=True
         )
 
     # convert 3D lines
@@ -320,7 +334,7 @@ def convert_lines(lines, z):
             output=points,
             dmax=res,
             overwrite=True,
-            superquiet=True,
+            superquiet=True
         )
         gs.run_command(
             "v.to.rast",
@@ -328,10 +342,41 @@ def convert_lines(lines, z):
             output=raster,
             use="z",
             overwrite=True,
-            superquiet=True,
+            superquiet=True
         )
 
     return raster
+
+
+def adaptive_region(batch, elevation, border):
+    """Set a temporary region containing coordinates"""
+
+    # find bounds of current region
+    gregion = gs.region()
+    north = gregion["n"]
+    south = gregion["s"]
+    east = gregion["e"]
+    west = gregion["w"]
+
+    # unzip coordinates
+    x, y, z = zip(*batch)
+
+    # solve bounds of adaptive region
+    n = float(max(y)) + border
+    s = float(min(y)) - border
+    e = float(max(x)) + border
+    w = float(min(x)) - border
+    if n >= north:
+        n = north
+    if s <= south:
+        s = south
+    if e >= east:
+        e = east
+    if w <= west:
+        w = west
+
+    # set adaptive region
+    gs.run_command("g.region", n=n, s=s, e=e, w=w, align=elevation)
 
 
 def earthworking(
@@ -339,6 +384,7 @@ def earthworking(
     batch,
     elevation,
     flat,
+    border,
     mode,
     function,
     rate,
@@ -346,11 +392,12 @@ def earthworking(
     earthworks,
     cut,
     fill,
+    nonadaptive
 ):
     """
     Model local earthworks
     """
-
+    
     # create empty lists for expressions
     dxy = []
     flats = []
@@ -360,27 +407,14 @@ def earthworking(
     cut_operations = []
     fill_operations = []
 
-    # use temporary region
-    gs.use_temp_region()
+    # set adaptive region
+    if not nonadaptive:
 
-    # unzip coordinates
-    x, y, z = zip(*batch)
+        # set temporary region
+        gs.use_temp_region()    
 
-    # calculate absolute values
-    x = [abs(float(x)) for x in x]
-    y = [abs(float(y)) for y in y]
-    z = [abs(float(z)) for z in z]
-
-    # solve bounds
-    n = max(y)
-    s = min(y)
-    e = max(x)
-    w = min(x)
-    delta_z = max(z)
-    delta_xy = (delta_z / rate) + flat
-
-    # set temporary region
-    gs.run_command("g.region", n=n, s=s, e=e, w=w, grow=delta_xy, align=elevation)
+        # fit adaptive region to coordinates in batch
+        adaptive_region(batch, elevation, border)
 
     # loop through batch
     for i in range(batch_size):
@@ -474,7 +508,7 @@ def earthworking(
             f"{','.join(cut_operations)}"
             f")"
             f")",
-            overwrite=True,
+            overwrite=True
         )
 
     # model fill operation
@@ -491,7 +525,7 @@ def earthworking(
             f"{','.join(fill_operations)}"
             f")"
             f")",
-            overwrite=True,
+            overwrite=True
         )
 
     # model cut-fill operation
@@ -508,8 +542,8 @@ def earthworking(
             f"{','.join(cut_operations)}"
             f")"
             f")",
-            overwrite=True,
-        )
+            overwrite=True
+        )  
 
         # model fill
         gs.mapcalc(
@@ -523,11 +557,12 @@ def earthworking(
             f"{','.join(fill_operations)}"
             f")"
             f")",
-            overwrite=True,
+            overwrite=True
         )
 
     # delete temporary region
-    gs.del_temp_region()
+    if not nonadaptive:
+        gs.del_temp_region()
 
 
 def series(operation, cuts, fills, elevation, earthworks):
@@ -546,12 +581,12 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cut,
             method="minimum",
             flags="z",
-            overwrite=True,
+            overwrite=True
         )
         # calculate net cut
         gs.mapcalc(
             f"{earthworks}= if(isnull({cut}),{elevation},{cut})",
-            overwrite=True,
+            overwrite=True
         )
 
     # model net fill
@@ -565,12 +600,12 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=fill,
             method="maximum",
             flags="z",
-            overwrite=True,
+            overwrite=True
         )
         # calculate net fill
         gs.mapcalc(
             f"{earthworks}= if(isnull({fill}),{elevation},{fill})",
-            overwrite=True,
+            overwrite=True
         )
 
     # model net cut and fill
@@ -584,7 +619,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cut,
             method="minimum",
             flags="z",
-            overwrite=True,
+            overwrite=True
         )
 
         # calculate maximum fill
@@ -596,7 +631,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=fill,
             method="maximum",
             flags="z",
-            overwrite=True,
+            overwrite=True
         )
 
         # calculate sum of cut and fill
@@ -608,13 +643,13 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cutfill,
             method="sum",
             flags="z",
-            overwrite=True,
+            overwrite=True
         )
 
         # calculate net cut and fill
         gs.mapcalc(
             f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})",
-            overwrite=True,
+            overwrite=True
         )
 
 
@@ -719,7 +754,27 @@ def main():
     coordinates = options["coordinates"]
     z = options["z"]
     flat = float(options["flat"])
+    border = float(options["border"])
     print_volume = flags["p"]
+    nonadaptive = flags["r"]
+
+    # toggle adaptive region based on region size
+    if nonadaptive:
+        gs.info(
+            "Not using an adaptive region. "
+            "If processing takes too long, try using an adaptive region."
+        )
+    if not nonadaptive:
+        gregion = gs.region()
+        cells = gregion["cells"]
+        if cells <= 100000:
+            nonadaptive = True
+            gs.info(f"Not using an adaptive region since there are less than 100K cells.")
+        else:
+            gs.info(
+                "Using an adaptive region for faster computation. "
+                "If artifacts occur, increase the size of the border."
+            )
 
     # run processes
     try:
@@ -745,6 +800,7 @@ def main():
         coordinates = sorted(coordinates)
         batches = list(batched(coordinates, batch_size))
         for batch in batches:
+
             # set current batch size
             batch_size = len(batch)
 
@@ -773,6 +829,7 @@ def main():
                 batch,
                 elevation,
                 flat,
+                border,
                 mode,
                 function,
                 rate,
@@ -780,6 +837,7 @@ def main():
                 earthworks,
                 cut,
                 fill,
+                nonadaptive
             )
 
         # model composite earthworks
@@ -795,7 +853,7 @@ def main():
 
         # postprocessing
         postprocess(earthworks)
-
+    
     # clean up
     finally:
         atexit.register(clean, temporary)
