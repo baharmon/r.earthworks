@@ -256,7 +256,7 @@ def convert_points(points, mode, z):
             separator="comma",
             flags="p",
             overwrite=True,
-            superquiet=True
+            superquiet=True,
         )
 
         # find coordinates
@@ -279,7 +279,7 @@ def convert_points(points, mode, z):
             separator="comma",
             flags="p",
             overwrite=True,
-            superquiet=True
+            superquiet=True,
         )
 
         # find coordinates
@@ -315,7 +315,7 @@ def convert_lines(lines, z):
             use="value",
             value=z,
             overwrite=True,
-            superquiet=True
+            superquiet=True,
         )
 
     # convert 3D lines
@@ -334,7 +334,7 @@ def convert_lines(lines, z):
             output=points,
             dmax=res,
             overwrite=True,
-            superquiet=True
+            superquiet=True,
         )
         gs.run_command(
             "v.to.rast",
@@ -342,7 +342,7 @@ def convert_lines(lines, z):
             output=raster,
             use="z",
             overwrite=True,
-            superquiet=True
+            superquiet=True,
         )
 
     return raster
@@ -392,12 +392,12 @@ def earthworking(
     earthworks,
     cut,
     fill,
-    nonadaptive
+    nonadaptive,
 ):
     """
     Model local earthworks
     """
-    
+
     # create empty lists for expressions
     dxy = []
     flats = []
@@ -409,9 +409,8 @@ def earthworking(
 
     # set adaptive region
     if not nonadaptive:
-
         # set temporary region
-        gs.use_temp_region()    
+        gs.use_temp_region()
 
         # fit adaptive region to coordinates in batch
         adaptive_region(batch, elevation, border)
@@ -508,7 +507,7 @@ def earthworking(
             f"{','.join(cut_operations)}"
             f")"
             f")",
-            overwrite=True
+            overwrite=True,
         )
 
     # model fill operation
@@ -525,7 +524,7 @@ def earthworking(
             f"{','.join(fill_operations)}"
             f")"
             f")",
-            overwrite=True
+            overwrite=True,
         )
 
     # model cut-fill operation
@@ -542,8 +541,8 @@ def earthworking(
             f"{','.join(cut_operations)}"
             f")"
             f")",
-            overwrite=True
-        )  
+            overwrite=True,
+        )
 
         # model fill
         gs.mapcalc(
@@ -557,7 +556,7 @@ def earthworking(
             f"{','.join(fill_operations)}"
             f")"
             f")",
-            overwrite=True
+            overwrite=True,
         )
 
     # delete temporary region
@@ -581,13 +580,10 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cut,
             method="minimum",
             flags="z",
-            overwrite=True
+            overwrite=True,
         )
         # calculate net cut
-        gs.mapcalc(
-            f"{earthworks}= if(isnull({cut}),{elevation},{cut})",
-            overwrite=True
-        )
+        gs.mapcalc(f"{earthworks}= if(isnull({cut}),{elevation},{cut})", overwrite=True)
 
     # model net fill
     elif operation == "fill":
@@ -600,12 +596,11 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=fill,
             method="maximum",
             flags="z",
-            overwrite=True
+            overwrite=True,
         )
         # calculate net fill
         gs.mapcalc(
-            f"{earthworks}= if(isnull({fill}),{elevation},{fill})",
-            overwrite=True
+            f"{earthworks}= if(isnull({fill}),{elevation},{fill})", overwrite=True
         )
 
     # model net cut and fill
@@ -619,7 +614,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cut,
             method="minimum",
             flags="z",
-            overwrite=True
+            overwrite=True,
         )
 
         # calculate maximum fill
@@ -631,7 +626,7 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=fill,
             method="maximum",
             flags="z",
-            overwrite=True
+            overwrite=True,
         )
 
         # calculate sum of cut and fill
@@ -643,13 +638,12 @@ def series(operation, cuts, fills, elevation, earthworks):
             output=cutfill,
             method="sum",
             flags="z",
-            overwrite=True
+            overwrite=True,
         )
 
         # calculate net cut and fill
         gs.mapcalc(
-            f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})",
-            overwrite=True
+            f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})", overwrite=True
         )
 
 
@@ -769,7 +763,9 @@ def main():
         cells = gregion["cells"]
         if cells <= 100000:
             nonadaptive = True
-            gs.info(f"Not using an adaptive region since there are less than 100K cells.")
+            gs.info(
+                "Not using an adaptive region since there are less than 100K cells."
+            )
         else:
             gs.info(
                 "Using an adaptive region for faster computation. "
@@ -800,7 +796,6 @@ def main():
         coordinates = sorted(coordinates)
         batches = list(batched(coordinates, batch_size))
         for batch in batches:
-
             # set current batch size
             batch_size = len(batch)
 
@@ -837,7 +832,7 @@ def main():
                 earthworks,
                 cut,
                 fill,
-                nonadaptive
+                nonadaptive,
             )
 
         # model composite earthworks
@@ -853,7 +848,7 @@ def main():
 
         # postprocessing
         postprocess(earthworks)
-    
+
     # clean up
     finally:
         atexit.register(clean, temporary)

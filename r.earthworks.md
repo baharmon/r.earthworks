@@ -80,12 +80,12 @@ to print the net volume of cut and fill.
 ### Adaptive Region
 
 To speed computation,
-*r.earthworks* uses an adaptive region. 
+*r.earthworks* uses an adaptive region.
 The adaptive region limits earthworking operations
-to subregions containing input geometry. 
+to subregions containing input geometry.
 The adaptive region is grown by a `border` parameter
 which has a default value of a thousand map units.
-If this border is not large enough, 
+If this border is not large enough,
 then the earthworking operations may be incomplete
 with artifacts along their edges.
 If artifacts occurs, then increase the size of the border.
@@ -93,7 +93,7 @@ A larger border, however, will increase computation time.
 When the input elevation raster has a hundred thousand cells or more,
 an adaptive region is used by default,
 but can be disabled with flag `-r`.
-When the adaptive region is not used, 
+When the adaptive region is not used,
 it can take a long time to model extensive earthworks
 for large elevation rasters with a million cells or more.
 
