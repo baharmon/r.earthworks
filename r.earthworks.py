@@ -585,14 +585,11 @@ def grow_region(border, region, elevation):
     """Expand region extent"""
 
     # Find current extent
-    data = gs.parse_command(
-        "g.region", region=region, format="json", flags="p"
-    )
-    data = data["region"]
-    n = data["north"]
-    s = data["south"]
-    e = data["east"]
-    w = data["west"]
+    data = gs.parse_command("g.region", region=region, flags="g")
+    n = float(data["n"])
+    s = float(data["s"])
+    e = float(data["e"])
+    w = float(data["w"])
 
     # Calculate expanded extent
     n = n + border
@@ -601,15 +598,12 @@ def grow_region(border, region, elevation):
     w = w - border
 
     # Find source region extent
-    data = gs.parse_command(
-        "g.region", region=source, format="json", flags="p"
-    )
-    data = data["region"]
-    north = data["north"]
-    south = data["south"]
-    east = data["east"]
-    west = data["west"]
-    
+    data = gs.parse_command("g.region", region=source, flags="g")
+    north = float(data["n"])
+    south = float(data["s"])
+    east = float(data["e"])
+    west = float(data["w"])
+
     # Limit to source region extent
     if n > north:
         n = north
@@ -1063,9 +1057,9 @@ def print_difference(operation, volume):
     # Print net change
     if operation == "cutfill":
         univar = gs.parse_command(
-            "r.univar", map=volume, format="json"
+            "r.univar", map=volume, separator="newline", flags="g"
         )
-        net = nsres * ewres * univar["sum"]
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0
         gs.info(f"Net change: {net} cubic {units.lower()}")
@@ -1075,8 +1069,8 @@ def print_difference(operation, volume):
         fill = gs.append_uuid("fill")
         temporary.append(fill)
         gs.mapcalc(f"{fill} = if({volume} > 0, {volume}, null())", overwrite=True)
-        univar = gs.parse_command("r.univar", map=fill, format="json")
-        net = nsres * ewres * univar["sum"]
+        univar = gs.parse_command("r.univar", map=fill, separator="newline", flags="g")
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0.0
         gs.info(f"Net fill: {net} cubic {units.lower()}")
@@ -1086,8 +1080,8 @@ def print_difference(operation, volume):
         cut = gs.append_uuid("cut")
         temporary.append(cut)
         gs.mapcalc(f"{cut} = if({volume} < 0, {volume}, null())", overwrite=True)
-        univar = gs.parse_command("r.univar", map=cut, format="json")
-        net = nsres * ewres * univar["sum"]
+        univar = gs.parse_command("r.univar", map=cut, separator="newline", flags="g")
+        net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
             net = 0.0
         gs.info(f"Net cut: {net} cubic {units.lower()}")
