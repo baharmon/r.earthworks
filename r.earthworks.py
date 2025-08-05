@@ -932,7 +932,7 @@ def earthworking(
         )
 
 
-def series(operation, cuts, fills, elevation, earthworks):
+def series(operation, function, cuts, fills, elevation, earthworks):
     """
     Model cumulative earthworks
     """
@@ -954,7 +954,10 @@ def series(operation, cuts, fills, elevation, earthworks):
             overwrite=True,
         )
         # Calculate net cut
-        gs.mapcalc(f"{earthworks}= if(isnull({cut}),{elevation},{cut})", overwrite=True)
+        gs.mapcalc(
+            f"{earthworks} = if(isnull({cut}),{elevation},{cut})",
+            overwrite=True
+        )
 
     # Model net fill
     elif operation == "fill":
@@ -971,7 +974,8 @@ def series(operation, cuts, fills, elevation, earthworks):
         )
         # Calculate net fill
         gs.mapcalc(
-            f"{earthworks}= if(isnull({fill}),{elevation},{fill})", overwrite=True
+            f"{earthworks}= if(isnull({fill}),{elevation},{fill})",
+            overwrite=True
         )
 
     # Model net cut and fill
@@ -1000,22 +1004,65 @@ def series(operation, cuts, fills, elevation, earthworks):
             overwrite=True,
         )
 
-        # Calculate sum of cut and fill
-        cutfill = gs.append_uuid("cutfill")
-        temporary.append(cutfill)
-        gs.run_command(
-            "r.series",
-            input=[cut, fill],
-            output=cutfill,
-            method="sum",
-            flags="z",
-            overwrite=True,
-        )
+        if function in ("linear", "lorentz"):
 
-        # Calculate net cut and fill
-        gs.mapcalc(
-            f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})", overwrite=True
-        )
+            # Calculate sum of cut and fill
+            cutfill = gs.append_uuid("cutfill")
+            temporary.append(cutfill)
+            gs.run_command(
+                "r.series",
+                input=[cut, fill],
+                output=cutfill,
+                method="sum",
+                flags="z",
+                overwrite=True,
+            )
+
+            # Calculate net elevation
+            gs.mapcalc(
+                f"{earthworks} = if(isnull({cutfill}),{elevation},{cutfill})",
+                overwrite=True
+            )
+        
+        if function in ("exponential", "logistic", "gaussian", "quadratic", "cubic"):
+
+            # Calculate net change in cut
+            delta_cut = gs.append_uuid("delta_cut")
+            temporary.append(delta_cut)
+            gs.mapcalc(
+                f"{delta_cut} = {elevation} - {cut}",
+                overwrite=True
+            )
+
+            # Calculate net change in fill
+            delta_fill = gs.append_uuid("delta_fill")
+            temporary.append(delta_fill)
+            gs.mapcalc(
+                f"{delta_fill} = {fill} - {elevation}",
+                overwrite=True
+            )
+
+            # Calculate net change in cut and fill
+            delta_cutfill = gs.append_uuid("delta_cutfill")
+            temporary.append(delta_cutfill)
+            gs.mapcalc(
+                f"{delta_cutfill} = {delta_fill} - {delta_cut}",
+                overwrite=True
+            )
+
+            # Calculate net cut and fill
+            cutfill = gs.append_uuid("cutfill")
+            temporary.append(cutfill)
+            gs.mapcalc(
+                f"{cutfill} = {elevation} + {delta_cutfill}",
+                overwrite=True
+            )
+
+            # Calculate net elevation
+            gs.mapcalc(
+                f"{earthworks}= if(isnull({cutfill}),{elevation},{cutfill})",
+                overwrite=True
+            )
 
 
 def difference(elevation, earthworks, volume):
@@ -1028,7 +1075,7 @@ def difference(elevation, earthworks, volume):
         volume = gs.append_uuid("volume")
         temporary.append(volume)
 
-    # Model earthworks
+    # Model volumetric change
     gs.mapcalc(f"{volume} = {earthworks} - {elevation}", overwrite=True)
 
     # Set color gradient
@@ -1262,7 +1309,7 @@ def main():
             )
 
         # Model composite earthworks
-        series(operation, cuts, fills, elevation, earthworks)
+        series(operation, function, cuts, fills, elevation, earthworks)
 
         # Calculate volume
         if volume or print_volume:
