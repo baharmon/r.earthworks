@@ -32,7 +32,7 @@ sample dataset, run:
 
 ```bash
 g.region n=217700 s=216200 w=639200 e=640700 res=10
-r.earthworks elevation=elevation earthworks=earthworks lines=roadsmajor z=95 rate=0.25 operation=fill flat=25
+r.earthworks elevation=elevation earthworks=earthworks lines=roadsmajor z=95 function=linear linear=0.25 operation=fill flat=25
 r.contour input=earthworks output=contours step=2
 ```
 
