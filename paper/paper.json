@@ -1,0 +1,51 @@
+{
+    "@context": "https://w3id.org/codemeta/3.0",
+    "type": "SoftwareSourceCode",
+    "author": [
+        {
+            "id": "http://orcid.org/0000-0002-6218-9318",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Louisiana State University"
+            },
+            "email": "brendan.harmon@gmail.com",
+            "familyName": "Harmon",
+            "givenName": "Brendan"
+        },
+        {
+            "id": "http://orcid.org/0000-0002-5120-5538",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "North Carolina State University"
+            },
+            "familyName": "Petrasova",
+            "givenName": "Anna"
+        },
+        {
+            "id": "http://orcid.org/0000-0001-5566-9236",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "North Carolina State University"
+            },
+            "familyName": "Petras",
+            "givenName": "Vaclav"
+        }
+    ],
+    "codeRepository": "https://github.com/baharmon/r.earthworks",
+    "dateCreated": "2025-08-10",
+    "dateModified": "2025-08-10",
+    "datePublished": "2025-08-10",
+    "description": "A tool for modeling terrain in GRASS",
+    "identifier": "10.5281/zenodo.15507391",
+    "keywords": [
+        "terrain modeling",
+        "earthworks",
+        "grading"
+    ],
+    "license": "https://spdx.org/licenses/GPL-3.0",
+    "name": "r.earthworks: a GRASS tool for terrain modeling",
+    "version": "2.0.0"
+}

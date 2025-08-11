@@ -1,13 +1,16 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15507391.svg)](https://doi.org/10.5281/zenodo.15507391)
 
 # r.earthworks
 
-An add-on module for computational terrain modeling in GRASS GIS.
+An add-on tool for computational terrain modeling in GRASS.
 This is the repository for development version. 
 The stable release is in the 
 [GRASS Addons Repository](https://github.com/OSGeo/grass-addons).
 To learn more see the 
-[documentation](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html). 
+[paper](https://raw.githubusercontent.com/baharmon/r.earthworks/main/paper/paper.pdf),
+[documentation](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html),
+and [tutorials](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/earthworks.html).
 
 ## Installation
 

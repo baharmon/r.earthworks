@@ -4,7 +4,6 @@ tags:
   - terrain modeling
   - earthworks
   - grading
-  - landform
 authors:
   - name: Brendan A. Harmon
     orcid: 0000-0002-6218-9318
