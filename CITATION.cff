@@ -5,7 +5,7 @@ authors:
   given-names: "Brendan"
   orcid: "https://orcid.org/0000-0002-6218-9318"
 title: "r.earthworks"
-version: 1.2.0
+version: 2.0.0
 doi: 10.5281/zenodo.15507392
-date-released: 2025-06-04
+date-released: 2025-08-13
 url: "https://github.com/baharmon/r.earthworks"
