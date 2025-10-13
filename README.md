@@ -1,6 +1,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15507391.svg)](https://doi.org/10.5281/zenodo.15507391)
 
+![Elevation](paper/figure_1.png)
+
 # r.earthworks
 
 An add-on tool for computational terrain modeling in GRASS.
