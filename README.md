@@ -58,18 +58,26 @@ and model anthropogenic landforms - i.e. earthworks -
 such as roads, dams, and levees.
 Read our [paper](paper/paper.pdf) to learn more.
 
-[**Basic earthworks:**](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/basics.html)
+### [Basic earthworks](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/basics.html)
+
 Learn the basics of terrain modeling with r.earthworks.
+
 ![Basic earthworks](tutorials/images/basics_05.webp)
 
-[**Gully modeling:**](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/gullies.html)
+### [Gully modeling](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/gullies.html)
+
 Model gullies using relative cut operations.
+
 ![Gully modeling](tutorials/images/gullies_03.webp)
 
-[**Coastal infrastructure:**](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/levees.html)
+### [Coastal infrastructure](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/levees.html)
+
 Model coastal infrastructure projects including levees and restored alluvial ridges.
+
 ![Coastal infrastructure](tutorials/images/levees_08.webp)
 
-[**Terrain synthesis:**](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/synthesis.html)
+### [Terrain synthesis](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/synthesis.html)
+
 Synthesize terrain by applying landforms from one landscape to another.
+
 ![Terrain synthesis](tutorials/images/synthesis_07.webp)
