@@ -11,7 +11,7 @@ The stable release is in the
 [GRASS Addons Repository](https://github.com/OSGeo/grass-addons).
 To learn more see the 
 [paper](https://raw.githubusercontent.com/baharmon/r.earthworks/main/paper/paper.pdf),
-[documentation](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html),
+[documentation](https://grass.osgeo.org/grass85/manuals/addons/r.earthworks.html),
 and [tutorials](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/earthworks.html).
 
 ## Installation
@@ -41,3 +41,21 @@ r.contour input=earthworks output=contours step=2
 | Elevation | Earthworks |
 | --------- | ---------- |
 | ![Elevation](r_earthworks_07.png) | ![Earthworks](r_earthworks_08.png) |
+
+## Tutorials
+
+**Basic earthworks** 
+Learn the basics of terrain modeling with r.earthworks.
+![Basic earthworks](tutorials/images/basics_05.webp)
+
+**Gully modeling**
+Model gullies using relative cut operations.
+![Gully modeling](tutorials/images/gullies_03.webp)
+
+**Coastal infrastructure**
+Model coastal infrastructure projects including levees and restored alluvial ridges.
+![Coastal infrastructure](tutorials/images/levees_08.webp)
+
+**Terrain synthesis**
+Synthesize terrain by applying landforms from one landscape to another.
+![Terrain synthesis](tutorials/images/synthesis_07.webp)
