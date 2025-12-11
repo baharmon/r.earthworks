@@ -253,8 +253,8 @@ r.lake --overwrite elevation=earthworks water_level=104 lake=lake coordinates=63
 
 In GRASS 8.5 and above,
 map algebra uses parallel computing
-for faster raster calculations. 
-The current implementation 
+for faster raster calculations.
+The current implementation
 of parallelization in r.mapcalc
 can open too many files
 causing *r.earthworks* to fail
@@ -263,13 +263,13 @@ depending on the open file limit of the user's system.
 This issue can be addressed
 by enabling quadtree segmentation,
 setting fewer threads for parallel computing,
-or by raising the open file limit. 
-If this error occurs, try setting 
+or raising the open file limit.
+If this error occurs, try setting
 smaller `threshold` and `border` parameters
 for quadtree segmentation.
-Alternatively, try setting 
+Alternatively, try setting
 the number of threads for parallel computing
-with the `nprocs` parameter. 
+with the `nprocs` parameter.
 Use the shell command `ulimit`
 to temporarily raise the open file limit:
 
@@ -279,9 +279,13 @@ ulimit -S -n 32768
 
 ## REFERENCES
 
-Harmon, B., Petrasova, A., and Petras, V. (2025). [r.earthworks: a GRASS tool for terrain modeling](https://github.com/baharmon/r.earthworks/blob/main/paper/paper.pdf) \[Preprint\].
+* Harmon, B., Petrasova, A., and Petras, V. (2025).
+    [r.earthworks: a GRASS tool for terrain modeling][1] \[Preprint\].
+* Harmon, B. (2025). [r.earthworks][2] (Version 2.0.0) \[Computer software\].
 
-Harmon, B. (2025). r.earthworks (Version 2.0.0) \[Computer software\]. <https://doi.org/10.5281/zenodo.15507392>
+[1]: https://github.com/baharmon/r.earthworks/blob/main/paper/paper.pdf
+
+[2]: https://doi.org/10.5281/zenodo.15507392
 
 ## AUTHORS
 

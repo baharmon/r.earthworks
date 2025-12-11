@@ -765,7 +765,7 @@ def earthworking(
     cut,
     fill,
     disable,
-    threads
+    threads,
 ):
     """
     Model local earthworks
@@ -995,7 +995,7 @@ def series(operation, function, cuts, fills, elevation, earthworks, threads):
         gs.mapcalc(
             f"{earthworks} = if(isnull({cut}),{elevation},{cut})",
             nprocs=threads,
-            overwrite=True
+            overwrite=True,
         )
 
     # Model net fill
@@ -1015,7 +1015,7 @@ def series(operation, function, cuts, fills, elevation, earthworks, threads):
         gs.mapcalc(
             f"{earthworks}= if(isnull({fill}),{elevation},{fill})",
             nprocs=threads,
-            overwrite=True
+            overwrite=True,
         )
 
     # Model net cut and fill
@@ -1068,30 +1068,34 @@ def series(operation, function, cuts, fills, elevation, earthworks, threads):
             # Calculate net change in cut
             delta_cut = gs.append_uuid("delta_cut")
             temporary.append(delta_cut)
-            gs.mapcalc(f"{delta_cut} = {elevation} - {cut}",
-                nprocs=threads,
-                overwrite=True)
+            gs.mapcalc(
+                f"{delta_cut} = {elevation} - {cut}", nprocs=threads, overwrite=True
+            )
 
             # Calculate net change in fill
             delta_fill = gs.append_uuid("delta_fill")
             temporary.append(delta_fill)
-            gs.mapcalc(f"{delta_fill} = {fill} - {elevation}",
-                nprocs=threads,
-                overwrite=True)
+            gs.mapcalc(
+                f"{delta_fill} = {fill} - {elevation}", nprocs=threads, overwrite=True
+            )
 
             # Calculate net change in cut and fill
             delta_cutfill = gs.append_uuid("delta_cutfill")
             temporary.append(delta_cutfill)
-            gs.mapcalc(f"{delta_cutfill} = {delta_fill} - {delta_cut}",
+            gs.mapcalc(
+                f"{delta_cutfill} = {delta_fill} - {delta_cut}",
                 nprocs=threads,
-                overwrite=True)
+                overwrite=True,
+            )
 
             # Calculate net cut and fill
             cutfill = gs.append_uuid("cutfill")
             temporary.append(cutfill)
-            gs.mapcalc(f"{cutfill} = {elevation} + {delta_cutfill}",
+            gs.mapcalc(
+                f"{cutfill} = {elevation} + {delta_cutfill}",
                 nprocs=threads,
-                overwrite=True)
+                overwrite=True,
+            )
 
             # Calculate net elevation
             gs.mapcalc(
@@ -1112,9 +1116,7 @@ def difference(elevation, earthworks, volume, threads):
         temporary.append(volume)
 
     # Model volumetric change
-    gs.mapcalc(f"{volume} = {earthworks} - {elevation}",
-        nprocs=threads,
-        overwrite=True)
+    gs.mapcalc(f"{volume} = {earthworks} - {elevation}", nprocs=threads, overwrite=True)
 
     # Set color gradient
     gs.run_command("r.colors", map=volume, color="viridis", superquiet=True)
@@ -1153,9 +1155,11 @@ def print_difference(operation, volume, threads):
     if operation in {"cutfill", "fill"}:
         fill = gs.append_uuid("fill")
         temporary.append(fill)
-        gs.mapcalc(f"{fill} = if({volume} > 0, {volume}, null())",
+        gs.mapcalc(
+            f"{fill} = if({volume} > 0, {volume}, null())",
             nprocs=threads,
-            overwrite=True)
+            overwrite=True,
+        )
         univar = gs.parse_command("r.univar", map=fill, separator="newline", flags="g")
         net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
@@ -1166,9 +1170,11 @@ def print_difference(operation, volume, threads):
     if operation in {"cutfill", "cut"}:
         cut = gs.append_uuid("cut")
         temporary.append(cut)
-        gs.mapcalc(f"{cut} = if({volume} < 0, {volume}, null())",
+        gs.mapcalc(
+            f"{cut} = if({volume} < 0, {volume}, null())",
             nprocs=threads,
-            overwrite=True)
+            overwrite=True,
+        )
         univar = gs.parse_command("r.univar", map=cut, separator="newline", flags="g")
         net = nsres * ewres * float(univar["sum"])
         if math.isnan(net):
@@ -1341,7 +1347,7 @@ def main():
                 cut,
                 fill,
                 disable,
-                threads
+                threads,
             )
 
         # Model composite earthworks
