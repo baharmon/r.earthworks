@@ -10,7 +10,7 @@ This is the repository for development version.
 The stable release is in the 
 [GRASS Addons Repository](https://github.com/OSGeo/grass-addons).
 To learn more see the 
-[paper](https://raw.githubusercontent.com/baharmon/r.earthworks/main/paper/paper.pdf),
+[paper](https://doi.org/10.21105/joss.09270),
 [documentation](https://grass.osgeo.org/grass85/manuals/addons/r.earthworks.html),
 and [tutorials](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/earthworks.html).
 
