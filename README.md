@@ -1,5 +1,5 @@
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09270/status.svg)](https://doi.org/10.21105/joss.09270)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15507391.svg)](https://doi.org/10.5281/zenodo.15507391)
 
 ![Elevation](paper/figure_1.png)
 
@@ -56,7 +56,7 @@ These tutorials demonstrate how to generate terrain,
 model natural landforms,
 and model anthropogenic landforms - i.e. earthworks -
 such as roads, dams, and levees.
-Read our [paper](paper/paper.pdf) to learn more.
+Read our [paper](https://doi.org/10.21105/joss.09270) to learn more.
 
 ### [Basic earthworks](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/basics.html)
 
