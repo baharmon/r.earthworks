@@ -38,8 +38,6 @@ r.earthworks elevation=elevation earthworks=earthworks lines=roadsmajor z=95 fun
 r.contour input=earthworks output=contours step=2
 ```
 
-![Elevation](r_earthworks_06.png)
-
 ![Earthworks](r_earthworks_07.png)
 
 ## Tutorials
