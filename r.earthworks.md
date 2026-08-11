@@ -128,7 +128,8 @@ tutorial collection.
 Perform basic cut and fill operations
 to model peaks and pits from x- and y-coordinates.
 
-**Setup**
+#### Setup
+
 Set the computational region
 with [*g.region*](https://grass.osgeo.org/grass-stable/manuals/g.region.html)
 and then use map algebra to generate a flat terrain
@@ -139,7 +140,8 @@ g.region n=500 s=0 e=500 w=0 res=1
 r.mapcalc expression="elevation = 0"
 ```
 
-**Fill Operation**
+#### Fill Operation
+
 Model a peak from a set of x- and y-coordinates with *r.earthworks*.
 Use the z parameter to set a z-coordinate for the top of the peak.
 Optionally use the flat parameter to create a plateau
@@ -152,7 +154,8 @@ r.earthworks elevation=elevation earthworks=peak operation=fill coordinates=250,
 ![Fill operation](r_earthworks_01.png)  
 *Figure: Fill operation*
 
-**Cut Operation**
+#### Cut Operation
+
 Model a pit from a set of x- and y-coordinates with *r.earthworks*.
 Set a z-coordinate for the bottom of the pit.
 
@@ -163,7 +166,8 @@ r.earthworks elevation=elevation earthworks=pit operation=cut coordinates=250,25
 ![Cut operation](r_earthworks_02.png)  
 *Figure: Cut operation*
 
-**Cut & Fill Operation**
+#### Cut & Fill Operation
+
 Model a pit and a peak from two sets of x- and y-coordinates
 with *r.earthworks*.
 Set a z-coordinate for the bottom of the pit
@@ -176,17 +180,17 @@ r.earthworks elevation=elevation earthworks=peak_and_pit operation=cutfill coord
 ![Cut-fill operation](r_earthworks_03.png)  
 *Figure: Cut-fill operation*
 
-**Random Earthworks**
+#### Random Earthworks
 
-Model a set of random peaks by generating a random surface, 
-sampling random points, and then filling on those points. 
-First generate a random surface with 
-[*r.surf.random*](https://grass.osgeo.org/grass-stable/manuals/r.surf.random.html). 
-Set a seed for reproducible results or set flag `s` for a random seed. 
-Then randomly sample 50 cells from the random surface 
-[*r.random*](https://grass.osgeo.org/grass-stable/manuals/r.random.html). 
-Use a fill operation to model random peaks with 
-[*r.earthworks*](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html). 
+Model a set of random peaks by generating a random surface,
+sampling random points, and then filling on those points.
+First generate a random surface with
+[*r.surf.random*](https://grass.osgeo.org/grass-stable/manuals/r.surf.random.html).
+Set a seed for reproducible results or set flag `s` for a random seed.
+Then randomly sample 50 cells from the random surface
+[*r.random*](https://grass.osgeo.org/grass-stable/manuals/r.random.html).
+Use a fill operation to model random peaks with
+[*r.earthworks*](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html).
 Set the input raster to the random cells.
 
 ```sh
@@ -285,10 +289,13 @@ r.lake --overwrite elevation=earthworks water_level=104 lake=lake coordinates=63
 ## NOTES
 
 ### VERSIONS
-This version of r.earthworks is compatible with GRASS 8.5 and above. 
+
+This version of r.earthworks is compatible with GRASS 8.5 and above.
 For older versions of GRASS, install [r.earthworks-3.1.0](https://doi.org/10.5281/zenodo.21865092).
 Download and unarchive this version from Zenodo.
-Then install with g.extension using the full file path to the extracted directory as the url.
+Then install with
+[*r.g.extension*](https://grass.osgeo.org/grass-stable/manuals/g.extension.html)
+using the full file path to the extracted directory as the url.
 
 ```bash
 curl -L "https://zenodo.org/records/21865092/files/baharmon/r.earthworks-3.1.0.zip?download=1" -O && unzip r.earthworks-3.1.0.zip
@@ -296,6 +303,7 @@ g.extension extension=r.earthworks operation=add url=baharmon-r.earthworks-28424
 ```
 
 ### ISSUES
+
 In GRASS 8.5 and above,
 map algebra uses parallel computing
 for faster raster calculations.
@@ -320,10 +328,10 @@ ulimit -S -n 32768
 
 * Harmon, B., Petrasova, A., and Petras, V., (2026).
     r.earthworks: a GRASS tool for terrain modeling.
-    Journal of Open Source Software, 11(118), 9270, 
-    https://doi.org/10.21105/joss.09270
+    Journal of Open Source Software, 11(118), 9270,
+    <https://doi.org/10.21105/joss.09270>
 * Harmon, B. (2026). r.earthworks (Version 4.0.0) \[Computer software\].
-    https://doi.org/10.5281/zenodo.15507391
+    <https://doi.org/10.5281/zenodo.15507391>
 
 ## AUTHORS
 
