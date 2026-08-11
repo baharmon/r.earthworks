@@ -178,7 +178,16 @@ r.earthworks elevation=elevation earthworks=peak_and_pit operation=cutfill coord
 
 **Random Earthworks**
 
-Model a set of random peaks by generating a random surface, sampling random points, and then filling on those points. First generate a random surface with [*r.surf.random*](https://grass.osgeo.org/grass-stable/manuals/r.surf.random.html). Set a seed for reproducible results or set flag `s` for a random seed. Then randomly sample 50 cells from the random surface [*r.random*](https://grass.osgeo.org/grass-stable/manuals/r.random.html). Use a fill operation to model random peaks with [*r.earthworks*](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html). Set the input raster to the random cells.
+Model a set of random peaks by generating a random surface, 
+sampling random points, and then filling on those points. 
+First generate a random surface with 
+[*r.surf.random*](https://grass.osgeo.org/grass-stable/manuals/r.surf.random.html). 
+Set a seed for reproducible results or set flag `s` for a random seed. 
+Then randomly sample 50 cells from the random surface 
+[*r.random*](https://grass.osgeo.org/grass-stable/manuals/r.random.html). 
+Use a fill operation to model random peaks with 
+[*r.earthworks*](https://grass.osgeo.org/grass-stable/manuals/addons/r.earthworks.html). 
+Set the input raster to the random cells.
 
 ```sh
 r.surf.random out=surface min=0 max=25 seed=2
@@ -226,13 +235,13 @@ g.region n=217700 s=216200 w=639200 e=640700 res=10
 r.earthworks elevation=elevation earthworks=earthworks lines=roadsmajor volume=volume z=95 function=linear linear=0.25 operation=fill flat=25 -p
 ```
 
-![Elevation](r_earthworks_06.png)  
+![Existing topography](r_earthworks_06.png)  
 *Figure: Existing topography*
 
-![Earthworks](r_earthworks_07.png)  
+![Roadway earthworks](r_earthworks_07.png)  
 *Figure: Roadway earthworks*
 
-![Volumetric Change](r_earthworks_08.png)  
+![Volumetric change](r_earthworks_08.png)  
 *Figure: Volumetric change*
 
 When working with a large elevation raster,
@@ -275,6 +284,18 @@ r.lake --overwrite elevation=earthworks water_level=104 lake=lake coordinates=63
 
 ## NOTES
 
+### VERSIONS
+This version of r.earthworks is compatible with GRASS 8.5 and above. 
+For older versions of GRASS, install [r.earthworks-3.1.0](https://doi.org/10.5281/zenodo.21865092).
+Download and unarchive this version from Zenodo.
+Then install with g.extension using the full file path to the extracted directory as the url.
+
+```bash
+curl -L "https://zenodo.org/records/21865092/files/baharmon/r.earthworks-3.1.0.zip?download=1" -O && unzip r.earthworks-3.1.0.zip
+g.extension extension=r.earthworks operation=add url=baharmon-r.earthworks-284245b
+```
+
+### ISSUES
 In GRASS 8.5 and above,
 map algebra uses parallel computing
 for faster raster calculations.
@@ -288,12 +309,6 @@ This issue can be addressed
 by enabling quadtree segmentation,
 setting fewer threads for parallel computing,
 or raising the open file limit.
-If this error occurs, try setting
-smaller `threshold` and `border` parameters
-for quadtree segmentation.
-Alternatively, try setting
-the number of threads for parallel computing
-with the `nprocs` parameter.
 Use the shell command `ulimit`
 to temporarily raise the open file limit:
 
@@ -303,13 +318,12 @@ ulimit -S -n 32768
 
 ## REFERENCES
 
-* Harmon, B., Petrasova, A., and Petras, V. (2025).
-    [r.earthworks: a GRASS tool for terrain modeling][1] \[Preprint\].
-* Harmon, B. (2025). [r.earthworks][2] (Version 2.0.0) \[Computer software\].
-
-[1]: https://github.com/baharmon/r.earthworks/blob/main/paper/paper.pdf
-
-[2]: https://doi.org/10.5281/zenodo.15507391
+* Harmon, B., Petrasova, A., and Petras, V., (2026).
+    r.earthworks: a GRASS tool for terrain modeling.
+    Journal of Open Source Software, 11(118), 9270, 
+    https://doi.org/10.21105/joss.09270
+* Harmon, B. (2026). r.earthworks (Version 4.0.0) \[Computer software\].
+    https://doi.org/10.5281/zenodo.15507391
 
 ## AUTHORS
 

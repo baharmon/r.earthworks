@@ -16,14 +16,27 @@ and [tutorials](https://grass-tutorials.osgeo.org/content/tutorials/earthworks/e
 
 ## Installation
 
-Install the stable release:
+Install the stable release for GRASS 8.5 and above:
+
 ```bash
 g.extension  extension=r.earthworks
 ```
 
-Install the development version:
+Install the development version for GRASS 8.5 and above:
+
 ```bash
 g.extension  extension=r.earthworks url=https://github.com/baharmon/r.earthworks
+```
+
+For older versions of GRASS, install 
+[r.earthworks-3.1.0](https://doi.org/10.5281/zenodo.21865092). 
+Download and unarchive this version from Zenodo.
+Then install with g.extension using the full file path 
+to the extracted directory as the url.
+
+```bash
+curl -L "https://zenodo.org/records/21865092/files/baharmon/r.earthworks-3.1.0.zip?download=1" -O && unzip r.earthworks-3.1.0.zip
+g.extension extension=r.earthworks operation=add url=baharmon-r.earthworks-284245b
 ```
 
 ## Example

@@ -1,4 +1,4 @@
-cff-version: "1.2.0"
+cff-version: "1.4.0"
 authors:
 - family-names: Harmon
   given-names: Brendan A.
@@ -9,7 +9,7 @@ authors:
 - family-names: Petras
   given-names: Vaclav
   orcid: "https://orcid.org/0000-0001-5566-9236"
-doi: 10.5281/zenodo.18407200
+doi: 10.5281/zenodo.15507391
 message: If you use this software, please cite our article in the
   Journal of Open Source Software.
 preferred-citation:
